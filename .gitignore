@@ -5,3 +5,4 @@ __pycache__/
 *.whl
 output/
 .pytest_cache/
+viewer/dist/

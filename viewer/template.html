@@ -1,0 +1,659 @@
+<title>Eurorack Asym Case</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --ground: #eef0f3;
+    --panel: #ffffff;
+    --panel-2: #f5f6f8;
+    --line: #d9dde3;
+    --text: #1b2028;
+    --muted: #5e6775;
+    --accent: #c9821f;
+    --accent-ink: #ffffff;
+    --case: #6e7c94;
+    --cap: #d9952f;
+    --module: #c9ced6;
+    --edge: #2a3140;
+    --focus: #2f6fd6;
+    --thumb-ring: rgba(201,130,31,0.22);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #161a20;
+      --panel: #1e232b;
+      --panel-2: #242a33;
+      --line: #313843;
+      --text: #e6e9ee;
+      --muted: #8a93a2;
+      --accent: #d9952f;
+      --accent-ink: #1b1409;
+      --case: #74839c;
+      --cap: #d9952f;
+      --module: #b9c0cb;
+      --edge: #0e1116;
+      --focus: #6ea1ff;
+      --thumb-ring: rgba(217,149,47,0.28);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #161a20;
+    --panel: #1e232b;
+    --panel-2: #242a33;
+    --line: #313843;
+    --text: #e6e9ee;
+    --muted: #8a93a2;
+    --accent: #d9952f;
+    --accent-ink: #1b1409;
+    --case: #74839c;
+    --cap: #d9952f;
+    --module: #b9c0cb;
+    --edge: #0e1116;
+    --focus: #6ea1ff;
+    --thumb-ring: rgba(217,149,47,0.28);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--text);
+    font: 14px/1.45 "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+    overflow: hidden;
+  }
+  .app {
+    display: grid;
+    grid-template-columns: 1fr 336px;
+    height: 100vh;
+  }
+  .stage { position: relative; min-width: 0; }
+  canvas { display: block; width: 100%; height: 100%; outline: none; }
+  canvas:focus-visible { box-shadow: inset 0 0 0 2px var(--focus); }
+
+  .hud {
+    position: absolute; left: 16px; top: 14px;
+    display: flex; flex-direction: column; gap: 6px; pointer-events: none;
+  }
+  .hud h1 {
+    margin: 0; font-size: 15px; font-weight: 600; letter-spacing: 0.01em;
+  }
+  .hud .src {
+    font: 500 11px/1.2 "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
+  }
+  .hud .src b { color: var(--accent); font-weight: 500; }
+
+  .views {
+    position: absolute; left: 16px; bottom: 14px; display: flex; gap: 6px;
+  }
+  .views button, .btn {
+    font: 500 12px/1 "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    letter-spacing: 0.04em;
+    padding: 8px 10px; border-radius: 4px;
+    border: 1px solid var(--line); background: var(--panel); color: var(--text);
+    cursor: pointer;
+  }
+  .views button:hover, .btn:hover { border-color: var(--muted); }
+  .views button:focus-visible, .btn:focus-visible,
+  input:focus-visible, select:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  .hint {
+    position: absolute; right: 16px; bottom: 14px; color: var(--muted);
+    font: 11px/1.3 "IBM Plex Mono", ui-monospace, Menlo, monospace; text-align: right;
+    pointer-events: none;
+  }
+  .banner {
+    position: absolute; inset: 0; display: none; place-items: center; padding: 24px;
+    background: var(--ground); color: var(--text); text-align: center;
+  }
+  .banner.show { display: grid; }
+  .banner p { max-width: 42ch; margin: 0; }
+
+  aside {
+    background: var(--panel); border-left: 1px solid var(--line);
+    overflow-y: auto; padding: 18px 20px 28px;
+    display: flex; flex-direction: column; gap: 22px;
+  }
+  section h2 {
+    margin: 0 0 10px;
+    font: 500 11px/1.2 "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+  }
+  .rows { display: flex; flex-direction: column; gap: 10px; }
+  .row { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 10px; }
+  .row label { font-weight: 500; }
+  .row .val {
+    font: 500 13px/1 "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    font-variant-numeric: tabular-nums; color: var(--text);
+  }
+  .row .val small { color: var(--muted); font-weight: 400; margin-left: 2px; }
+  .row input[type=range] { grid-column: 1 / -1; }
+  .row select {
+    grid-column: 1 / -1;
+    font: inherit; color: var(--text); background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px;
+  }
+
+  input[type=range] {
+    -webkit-appearance: none; appearance: none; width: 100%; height: 22px;
+    background: transparent; margin: 0; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-runnable-track { height: 3px; background: var(--line); border-radius: 2px; }
+  input[type=range]::-moz-range-track { height: 3px; background: var(--line); border-radius: 2px; }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 16px; height: 16px; margin-top: -6.5px;
+    border-radius: 50%; background: var(--accent); border: 2px solid var(--panel);
+    box-shadow: 0 0 0 3px var(--thumb-ring);
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 12px; height: 12px; border-radius: 50%; background: var(--accent);
+    border: 2px solid var(--panel); box-shadow: 0 0 0 3px var(--thumb-ring);
+  }
+
+  .parts { display: flex; flex-direction: column; gap: 8px; }
+  .part { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+  .part input { margin: 0; accent-color: var(--accent); }
+  .sw { width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--edge); flex: none; }
+  .part .vol {
+    margin-left: auto; color: var(--muted);
+    font: 12px/1 "IBM Plex Mono", ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums;
+  }
+
+  .readout { display: grid; grid-template-columns: 1fr auto; row-gap: 6px; column-gap: 12px; }
+  .readout dt { color: var(--muted); margin: 0; }
+  .readout dd {
+    margin: 0; text-align: right;
+    font: 500 13px/1.4 "IBM Plex Mono", ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums;
+  }
+  .readout dd small { color: var(--muted); font-weight: 400; }
+  .note { color: var(--muted); font-size: 12px; margin: 10px 0 0; line-height: 1.5; }
+  .note code { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-size: 11.5px; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+  @media (max-width: 820px) {
+    body { overflow: auto; }
+    .app { grid-template-columns: 1fr; grid-template-rows: 58vh auto; height: auto; }
+    aside { border-left: 0; border-top: 1px solid var(--line); }
+    .hint { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="app">
+  <div class="stage">
+    <canvas id="c" tabindex="0" aria-label="3D view of the case. Drag to orbit, scroll to zoom, right-drag to pan."></canvas>
+    <div class="hud">
+      <h1>Eurorack Asym Case</h1>
+      <div class="src" id="src">Exact mesh · <b>26 HP</b></div>
+    </div>
+    <div class="views" role="group" aria-label="View presets">
+      <button type="button" data-view="iso">Iso</button>
+      <button type="button" data-view="front">Front</button>
+      <button type="button" data-view="top">Top</button>
+      <button type="button" data-view="end">End</button>
+    </div>
+    <div class="hint">drag orbit · wheel zoom · right-drag pan</div>
+    <div class="banner" id="banner"><p></p></div>
+  </div>
+
+  <aside>
+    <section>
+      <h2>Parts</h2>
+      <div class="parts">
+        <label class="part"><input type="checkbox" data-part="case" checked><span class="sw" style="background:var(--case)"></span>Case<span class="vol" id="vol-case"></span></label>
+        <label class="part"><input type="checkbox" data-part="caps" checked><span class="sw" style="background:var(--cap)"></span>End caps ×2<span class="vol" id="vol-caps"></span></label>
+        <label class="part"><input type="checkbox" data-part="panel" checked><span class="sw" style="background:var(--module)"></span>Blank panel<span class="vol" id="vol-panel"></span></label>
+      </div>
+      <div class="rows" style="margin-top:14px">
+        <div class="row"><label for="explode">Explode</label><span class="val" id="explode-v">0</span>
+          <input id="explode" type="range" min="0" max="1" step="0.01" value="0"></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Parameters</h2>
+      <div class="rows">
+        <div class="row"><label for="hp">Width</label><span class="val"><span id="hp-v">26</span><small>HP</small></span>
+          <input id="hp" type="range" min="2" max="168" step="1" value="26"></div>
+        <div class="row"><label for="front">Front height</label><span class="val"><span id="front-v">30</span><small>mm</small></span>
+          <input id="front" type="range" min="21" max="200" step="1" value="30"></div>
+        <div class="row"><label for="rear">Rear height</label><span class="val"><span id="rear-v">30</span><small>mm</small></span>
+          <input id="rear" type="range" min="21" max="200" step="1" value="30"></div>
+        <div class="row"><label for="top-lips">Top lips</label><span class="val"><span id="top-size-v">1.0</span><small>mm</small></span>
+          <select id="top-lips"><option value="round">Round</option><option value="sharp">Sharp</option><option value="chamfer">Chamfer</option></select>
+          <input id="top-size" type="range" min="0.5" max="10" step="0.5" value="1"></div>
+        <div class="row"><label for="bottom-lips">Bottom lips</label><span class="val"><span id="bottom-size-v">1.0</span><small>mm</small></span>
+          <select id="bottom-lips"><option value="round">Round</option><option value="sharp">Sharp</option><option value="chamfer">Chamfer</option></select>
+          <input id="bottom-size" type="range" min="0.5" max="10" step="0.5" value="1"></div>
+        <div class="row"><label for="php">Blank panel</label><span class="val"><span id="php-v">6</span><small>HP</small></span>
+          <input id="php" type="range" min="2" max="40" step="1" value="6"></div>
+      </div>
+      <p class="note" id="live-note">Moving a slider switches to a live preview built in the browser: screw positions become markers and nut traps are left out. The exact geometry for any setting comes from <code>build.py</code>.</p>
+      <div class="actions">
+        <button type="button" class="btn" id="reset">Back to exact mesh</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Readout</h2>
+      <dl class="readout">
+        <dt>Length</dt><dd id="r-len"></dd>
+        <dt>With end caps</dt><dd id="r-lencaps"></dd>
+        <dt>Depth</dt><dd id="r-depth"></dd>
+        <dt>Height</dt><dd id="r-height"></dd>
+        <dt>Panel tilt</dt><dd id="r-tilt"></dd>
+        <dt>Rail bolt spacing</dt><dd id="r-rails"></dd>
+        <dt>Wall screws per end</dt><dd id="r-screws"></dd>
+      </dl>
+      <p class="note">Rails sit 3 mm from the inner walls, as in the Onshape source. The Eurorack standard is 122.5 mm between bolt centres.</p>
+    </section>
+  </aside>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function () {
+  'use strict';
+  const EXACT = /*__EXACT_DATA__*/null;
+
+  // ---- design constants (mirror eurorack_case/params.py) ----------------
+  const HP = 5.08;
+  const D = {
+    panelHeight: 129.5, panelT: 2, wallT: 4, bottomT: 4,
+    railDepth: 8, railHeight: 10, railInset: 3, boltW: 3.2, boltDepth: 8,
+    nutW: 5.8 - 0.1, nutT: 2.5, nutDepth: 2,
+    capT: 4, tabT: 5, tabDepth: 4 + 0.7 * 6,
+    cbDiam: 6, thruDiam: 3.3, holeInset: 4, floorSpacing: 55, wallSpacing: 23,
+    panelHoleD: 3.2, panelEdgeInset: 3, panelSideInset: 7.5,
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const banner = $('banner');
+  function fail(msg) { banner.querySelector('p').textContent = msg; banner.classList.add('show'); }
+  if (typeof THREE === 'undefined') { fail('The 3D library did not load. Check your connection and reload the page.'); return; }
+
+  // ---- renderer ----------------------------------------------------------
+  const canvas = $('c');
+  let renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+  } catch (e) { fail('WebGL is not available in this browser, so the 3D view cannot be drawn.'); return; }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(32, 1, 1, 5000);
+  camera.up.set(0, 0, 1);
+
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8f99, 0.9));
+  const key = new THREE.DirectionalLight(0xffffff, 0.75); key.position.set(180, -220, 300); scene.add(key);
+  const fill = new THREE.DirectionalLight(0xffffff, 0.3); fill.position.set(-200, 160, 120); scene.add(fill);
+
+  const css = () => getComputedStyle(document.documentElement);
+  const tok = (name) => css().getPropertyValue(name).trim();
+  const materials = {
+    case: new THREE.MeshStandardMaterial({ flatShading: true, roughness: 0.75, metalness: 0.05 }),
+    caps: new THREE.MeshStandardMaterial({ flatShading: true, roughness: 0.7, metalness: 0.05 }),
+    panel: new THREE.MeshStandardMaterial({ flatShading: true, roughness: 0.55, metalness: 0.2 }),
+    marker: new THREE.MeshBasicMaterial({ color: 0x000000 }),
+  };
+  const edgeMat = new THREE.LineBasicMaterial({ transparent: true, opacity: 0.55 });
+  function applyTheme() {
+    renderer.setClearColor(new THREE.Color(tok('--ground')));
+    materials.case.color.set(tok('--case'));
+    materials.caps.color.set(tok('--cap'));
+    materials.panel.color.set(tok('--module'));
+    edgeMat.color.set(tok('--edge'));
+    materials.marker.color.set(tok('--edge'));
+    render();
+  }
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
+  new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  // ---- groups ------------------------------------------------------------
+  const groups = { case: new THREE.Group(), capL: new THREE.Group(), capR: new THREE.Group(), panel: new THREE.Group() };
+  Object.values(groups).forEach((g) => scene.add(g));
+
+  function clear(g) {
+    while (g.children.length) {
+      const c = g.children.pop();
+      if (c.geometry) c.geometry.dispose();
+    }
+  }
+  function addMesh(g, geometry, mat, withEdges) {
+    geometry.computeVertexNormals();
+    g.add(new THREE.Mesh(geometry, mat));
+    if (withEdges) g.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry, 25), edgeMat));
+  }
+
+  // ---- exact meshes from CadQuery -----------------------------------------
+  function b64f32(s) { const b = atob(s), a = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return new Float32Array(a.buffer); }
+  function b64u32(s) { const b = atob(s), a = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return new Uint32Array(a.buffer); }
+  function exactGeometry(m) {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(b64f32(m.p), 3));
+    g.setIndex(new THREE.BufferAttribute(b64u32(m.i), 1));
+    return g;
+  }
+
+  // ---- live geometry --------------------------------------------------------
+  // Profiles are drawn in (Y, Z) and extruded along X, like the CadQuery model.
+  const toX = new THREE.Matrix4().set(0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1);
+  function extrudeYZ(points, length, x0) {
+    const shape = new THREE.Shape(points.map((p) => new THREE.Vector2(p[0], p[1])));
+    const g = new THREE.ExtrudeGeometry(shape, { depth: length, bevelEnabled: false, curveSegments: 4 });
+    g.applyMatrix4(toX);
+    if (x0) g.translate(x0, 0, 0);
+    return g;
+  }
+  // Replace corner B of A-B-C with an arc or chamfer of the given size.
+  function corner(A, B, C, style, size) {
+    if (style === 'sharp' || !size) return [B];
+    const u = [A[0] - B[0], A[1] - B[1]], v = [C[0] - B[0], C[1] - B[1]];
+    const lu = Math.hypot(u[0], u[1]), lv = Math.hypot(v[0], v[1]);
+    u[0] /= lu; u[1] /= lu; v[0] /= lv; v[1] /= lv;
+    if (style === 'chamfer') return [[B[0] + u[0] * size, B[1] + u[1] * size], [B[0] + v[0] * size, B[1] + v[1] * size]];
+    // round: tangent points at distance r / tan(theta/2) from the corner
+    const cosT = u[0] * v[0] + u[1] * v[1], theta = Math.acos(Math.max(-1, Math.min(1, cosT)));
+    const t = Math.min(size / Math.tan(theta / 2), lu * 0.49, lv * 0.49);
+    const P = [B[0] + u[0] * t, B[1] + u[1] * t], Q = [B[0] + v[0] * t, B[1] + v[1] * t];
+    const bis = [u[0] + v[0], u[1] + v[1]], lb = Math.hypot(bis[0], bis[1]);
+    const r = t * Math.tan(theta / 2);
+    const cen = [B[0] + bis[0] / lb * r / Math.sin(theta / 2), B[1] + bis[1] / lb * r / Math.sin(theta / 2)];
+    let a0 = Math.atan2(P[1] - cen[1], P[0] - cen[0]), a1 = Math.atan2(Q[1] - cen[1], Q[0] - cen[0]);
+    let d = a1 - a0; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
+    const n = 8, out = [];
+    for (let i = 0; i <= n; i++) { const a = a0 + d * i / n; out.push([cen[0] + r * Math.cos(a), cen[1] + r * Math.sin(a)]); }
+    return out;
+  }
+  function withLips(pts, treat) {
+    // treat: map from point index -> [style, size]
+    const out = [];
+    for (let i = 0; i < pts.length; i++) {
+      const t = treat[i];
+      if (!t) { out.push(pts[i]); continue; }
+      out.push(...corner(pts[(i + pts.length - 1) % pts.length], pts[i], pts[(i + 1) % pts.length], t[0], t[1]));
+    }
+    return out;
+  }
+
+  function floorOf(P) {
+    const yo = D.panelHeight / 2 + D.wallT;
+    const y0 = -yo, z0 = -P.front, y1 = yo, z1 = -P.rear;
+    const dy = y1 - y0, dz = z1 - z0, L = Math.hypot(dy, dz);
+    return {
+      slope: dz / dy, sec: L / dy, up: [0, -dz / L, dy / L],
+      zOuter: (y) => z0 + (y - y0) * dz / dy,
+      zAt: (y, off) => z0 + (y - y0) * dz / dy + off * L / dy,
+    };
+  }
+
+  function caseProfile(P, fl) {
+    const yi = D.panelHeight / 2, yo = yi + D.wallT;
+    const rt = -D.panelT, rb = rt - D.railHeight;
+    const ax = yi - D.railInset, bw = D.boltW / 2, nw = D.nutW / 2;
+    const slotB = rt - D.boltDepth, nutTop = rt - D.nutDepth, nutBot = nutTop - D.nutT;
+    // rear rail with T-slot, walking from the inner wall top around the rail and back
+    const rail = (s) => {
+      const q = [
+        [yi, rt], [ax + bw, rt], [ax + bw, nutTop], [ax + nw, nutTop], [ax + nw, nutBot], [ax + bw, nutBot],
+        [ax + bw, slotB], [ax - bw, slotB], [ax - bw, nutBot], [ax - nw, nutBot], [ax - nw, nutTop], [ax - bw, nutTop],
+        [ax - bw, rt], [yi - D.railDepth, rt], [yi - D.railDepth, rb], [yi, rb],
+      ];
+      return q.map((p) => [s * p[0], p[1]]);
+    };
+    const rear = rail(1);                 // from (yi, rt) ... to (yi, rb)
+    const front = rail(-1).reverse();     // from (-yi, rb) ... to (-yi, rt)
+    const pts = [
+      [-yo, 0], [-yo, -P.front], [yo, -P.rear], [yo, 0], [yi, 0],
+      ...rear,
+      [yi, fl.zAt(yi, D.bottomT)], [-yi, fl.zAt(-yi, D.bottomT)],
+      ...front,
+      [-yi, 0],
+    ];
+    const treat = { 0: [P.topLips, P.topSize], 1: [P.bottomLips, P.bottomSize], 2: [P.bottomLips, P.bottomSize], 3: [P.topLips, P.topSize] };
+    return withLips(pts, treat);
+  }
+
+  function wallHoleZs(P, fl, height, yLegInner) {
+    const half = D.nutW / 2, cb = D.cbDiam / 2, legTop = -D.panelT - D.railHeight;
+    const legFloor = fl.zAt(yLegInner, D.bottomT + D.tabT);
+    const zs = [];
+    for (let k = -8; k <= 8; k++) {
+      const z = -height / 2 + k * D.wallSpacing;
+      if (z + half > legTop + 1e-3 || z - half < legFloor - 1e-3) continue;
+      if (z + cb > 0 || z - cb < -height) continue;
+      zs.push(z);
+    }
+    return zs;
+  }
+
+  function markers(P, fl, g) {
+    const yi = D.panelHeight / 2, yo = yi + D.wallT, W = P.hp * HP;
+    const disc = new THREE.CylinderGeometry(D.cbDiam / 2, D.cbDiam / 2, 0.4, 24);
+    const add = (pos, normal) => {
+      const m = new THREE.Mesh(disc, materials.marker);
+      m.position.set(pos[0], pos[1], pos[2]);
+      m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(normal[0], normal[1], normal[2]));
+      g.add(m);
+    };
+    const down = [-fl.up[0], -fl.up[1], -fl.up[2]];
+    for (const x of [D.holeInset, W - D.holeInset]) {
+      for (const s of [-D.floorSpacing, 0, D.floorSpacing]) {
+        const y = s / fl.sec;
+        add([x, y, fl.zOuter(y) - 0.2], down);
+      }
+      for (const z of wallHoleZs(P, fl, P.front, -(yi - D.tabT))) add([x, -yo - 0.2, z], [0, -1, 0]);
+      for (const z of wallHoleZs(P, fl, P.rear, yi - D.tabT)) add([x, yo + 0.2, z], [0, 1, 0]);
+    }
+  }
+
+  function capGeometry(P, fl, end) {
+    const yo = D.panelHeight / 2 + D.wallT, yi = D.panelHeight / 2, W = P.hp * HP;
+    const plate = withLips([[-yo, 0], [-yo, -P.front], [yo, -P.rear], [yo, 0]],
+      { 0: [P.topLips, P.topSize], 1: [P.bottomLips, P.bottomSize], 2: [P.bottomLips, P.bottomSize], 3: [P.topLips, P.topSize] });
+    const top = -D.panelT - D.railHeight, ti = yi - D.tabT;
+    const tab = [
+      [-yi, top], [-yi, fl.zAt(-yi, D.bottomT)], [yi, fl.zAt(yi, D.bottomT)], [yi, top],
+      [ti, top], [ti, fl.zAt(ti, D.bottomT + D.tabT)], [-ti, fl.zAt(-ti, D.bottomT + D.tabT)], [-ti, top],
+    ];
+    if (end === 'right') return [extrudeYZ(plate, D.capT, W), extrudeYZ(tab, D.tabDepth, W - D.tabDepth)];
+    return [extrudeYZ(plate, D.capT, -D.capT), extrudeYZ(tab, D.tabDepth, 0)];
+  }
+
+  function panelGeometry(hp) {
+    const w = hp * HP, yi = D.panelHeight / 2;
+    const shape = new THREE.Shape([[0, -yi], [w, -yi], [w, yi], [0, yi]].map((p) => new THREE.Vector2(p[0], p[1])));
+    for (const x of [D.panelSideInset, w - D.panelSideInset]) {
+      for (const y of [-(yi - D.panelEdgeInset), yi - D.panelEdgeInset]) {
+        const h = new THREE.Path(); h.absarc(x, y, D.panelHoleD / 2, 0, Math.PI * 2, true); shape.holes.push(h);
+      }
+    }
+    const g = new THREE.ExtrudeGeometry(shape, { depth: D.panelT, bevelEnabled: false, curveSegments: 6 });
+    g.translate(0, 0, -D.panelT);
+    return g;
+  }
+
+  // ---- state ---------------------------------------------------------------
+  const state = { ...EXACT.params, panelHp: EXACT.panel_hp, explode: 0, exact: true, show: { case: true, caps: true, panel: true } };
+  const P = () => ({
+    hp: state.hp_count, front: state.front_height, rear: state.rear_height,
+    topLips: state.top_lips, topSize: state.top_lips === 'chamfer' ? state.upper_chamfer : state.upper_round,
+    bottomLips: state.bottom_lips, bottomSize: state.bottom_lips === 'chamfer' ? state.lower_chamfer : state.lower_round,
+  });
+
+  function buildExact() {
+    Object.values(groups).forEach(clear);
+    addMesh(groups.case, exactGeometry(EXACT.meshes.case), materials.case, true);
+    addMesh(groups.capL, exactGeometry(EXACT.meshes.capL), materials.caps, true);
+    addMesh(groups.capR, exactGeometry(EXACT.meshes.capR), materials.caps, true);
+    addMesh(groups.panel, exactGeometry(EXACT.meshes.panel), materials.panel, true);
+    $('vol-case').textContent = (EXACT.meshes.case.volume / 1000).toFixed(1) + ' cm³';
+    $('vol-caps').textContent = (2 * EXACT.meshes.capL.volume / 1000).toFixed(1) + ' cm³';
+    $('vol-panel').textContent = (EXACT.meshes.panel.volume / 1000).toFixed(1) + ' cm³';
+    $('src').innerHTML = 'Exact mesh · <b>' + EXACT.params.hp_count + ' HP</b> · ' + EXACT.params.front_height + '/' + EXACT.params.rear_height + ' mm';
+  }
+
+  function buildLive() {
+    const p = P(), fl = floorOf(p), W = p.hp * HP;
+    Object.values(groups).forEach(clear);
+    addMesh(groups.case, extrudeYZ(caseProfile(p, fl), W, 0), materials.case, true);
+    markers(p, fl, groups.case);
+    const [plate, tab] = capGeometry(p, fl, 'left');
+    addMesh(groups.capL, plate, materials.caps, true);
+    addMesh(groups.capL, tab, materials.caps, true);
+    const [plateR, tabR] = capGeometry(p, fl, 'right');
+    addMesh(groups.capR, plateR, materials.caps, true);
+    addMesh(groups.capR, tabR, materials.caps, true);
+    addMesh(groups.panel, panelGeometry(Math.min(state.panelHp, p.hp)), materials.panel, true);
+    $('vol-case').textContent = ''; $('vol-caps').textContent = ''; $('vol-panel').textContent = '';
+    $('src').innerHTML = 'Live preview · <b>' + p.hp + ' HP</b> · ' + p.front + '/' + p.rear + ' mm';
+  }
+
+  function readout() {
+    const p = P(), fl = floorOf(p), W = p.hp * HP, yi = D.panelHeight / 2, yo = yi + D.wallT;
+    const mm = (v, d) => v.toFixed(d === undefined ? 1 : d) + ' <small>mm</small>';
+    $('r-len').innerHTML = mm(W, 2);
+    $('r-lencaps').innerHTML = mm(W + 2 * D.capT, 2);
+    $('r-depth').innerHTML = mm(2 * yo);
+    $('r-height').innerHTML = mm(Math.max(p.front, p.rear), 0);
+    const tilt = Math.atan2(p.front - p.rear, 2 * yo) * 180 / Math.PI;
+    $('r-tilt').innerHTML = (tilt === 0 ? 'level' : (Math.abs(tilt).toFixed(1) + '° ' + (tilt > 0 ? 'toward rear' : 'toward front')));
+    $('r-rails').innerHTML = mm(2 * (yi - D.railInset));
+    const nf = wallHoleZs(p, fl, p.front, -(yi - D.tabT)).length, nr = wallHoleZs(p, fl, p.rear, yi - D.tabT).length;
+    $('r-screws').innerHTML = '3 floor · ' + nf + ' front · ' + nr + ' rear';
+  }
+
+  function layout() {
+    const p = P(), W = p.hp * HP, e = state.explode;
+    groups.capL.position.set(-45 * e, 0, 0);
+    groups.capR.position.set(45 * e, 0, 0);
+    groups.panel.position.set(0, 0, 40 * e);
+    groups.case.visible = state.show.case;
+    groups.capL.visible = groups.capR.visible = state.show.caps;
+    groups.panel.visible = state.show.panel;
+    render();
+  }
+
+  // ---- camera / orbit -------------------------------------------------------
+  const target = new THREE.Vector3(), sph = { r: 400, theta: -0.9, phi: 1.05 };
+  function fitDistance() {
+    const p = P(), W = p.hp * HP, yo = D.panelHeight / 2 + D.wallT;
+    const extent = Math.max(W + 2 * D.capT + 90 * state.explode, 2 * yo, Math.max(p.front, p.rear));
+    return extent * 1.35 / Math.tan(camera.fov * Math.PI / 360) * 0.5 + 40;
+  }
+  function centerTarget() {
+    const p = P(), W = p.hp * HP;
+    target.set(W / 2, 0, -Math.max(p.front, p.rear) / 2);
+  }
+  function view(name) {
+    centerTarget();
+    const presets = { iso: [-0.9, 1.05], front: [-Math.PI / 2, Math.PI / 2 - 0.02], top: [-Math.PI / 2, 0.02], end: [Math.PI, Math.PI / 2 - 0.02] };
+    [sph.theta, sph.phi] = presets[name];
+    sph.r = fitDistance();
+    updateCamera();
+  }
+  function updateCamera() {
+    sph.phi = Math.max(0.02, Math.min(Math.PI - 0.02, sph.phi));
+    sph.r = Math.max(40, Math.min(4000, sph.r));
+    camera.position.set(
+      target.x + sph.r * Math.sin(sph.phi) * Math.cos(sph.theta),
+      target.y + sph.r * Math.sin(sph.phi) * Math.sin(sph.theta),
+      target.z + sph.r * Math.cos(sph.phi));
+    camera.lookAt(target);
+    render();
+  }
+  let drag = null;
+  canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+  canvas.addEventListener('pointerdown', (e) => {
+    canvas.setPointerCapture(e.pointerId);
+    drag = { x: e.clientX, y: e.clientY, pan: e.button === 2 || e.shiftKey };
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY;
+    if (drag.pan) {
+      const k = sph.r * 0.0016;
+      const right = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0);
+      const up = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
+      target.addScaledVector(right, -dx * k).addScaledVector(up, dy * k);
+    } else { sph.theta -= dx * 0.006; sph.phi -= dy * 0.006; }
+    updateCamera();
+  });
+  const endDrag = () => { drag = null; };
+  canvas.addEventListener('pointerup', endDrag); canvas.addEventListener('pointercancel', endDrag);
+  canvas.addEventListener('wheel', (e) => { e.preventDefault(); sph.r *= Math.exp(e.deltaY * 0.0012); updateCamera(); }, { passive: false });
+  let pinch = null;
+  canvas.addEventListener('touchstart', (e) => { if (e.touches.length === 2) pinch = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); }, { passive: true });
+  canvas.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 2 && pinch) {
+      const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+      sph.r *= pinch / d; pinch = d; updateCamera();
+    }
+  }, { passive: true });
+  canvas.addEventListener('keydown', (e) => {
+    const step = 0.08;
+    if (e.key === 'ArrowLeft') sph.theta += step; else if (e.key === 'ArrowRight') sph.theta -= step;
+    else if (e.key === 'ArrowUp') sph.phi -= step; else if (e.key === 'ArrowDown') sph.phi += step;
+    else if (e.key === '+' || e.key === '=') sph.r *= 0.9; else if (e.key === '-') sph.r *= 1.1; else return;
+    e.preventDefault(); updateCamera();
+  });
+
+  function resize() {
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h; camera.updateProjectionMatrix();
+    render();
+  }
+  let raf = 0;
+  function render() { if (!raf) raf = requestAnimationFrame(() => { raf = 0; renderer.render(scene, camera); }); }
+  new ResizeObserver(resize).observe(canvas);
+  window.addEventListener('resize', resize);
+
+  // ---- controls -------------------------------------------------------------
+  const sliders = {
+    hp: ['hp_count', 0], front: ['front_height', 0], rear: ['rear_height', 0],
+    'top-size': [null, 1], 'bottom-size': [null, 1], php: ['panelHp', 0],
+  };
+  function showValues() {
+    $('hp-v').textContent = state.hp_count; $('front-v').textContent = state.front_height; $('rear-v').textContent = state.rear_height;
+    $('php-v').textContent = state.panelHp;
+    $('top-size-v').textContent = P().topSize.toFixed(1); $('bottom-size-v').textContent = P().bottomSize.toFixed(1);
+    $('explode-v').textContent = state.explode.toFixed(2);
+    $('top-size').disabled = state.top_lips === 'sharp'; $('bottom-size').disabled = state.bottom_lips === 'sharp';
+  }
+  function goLive() {
+    if (state.exact) { state.exact = false; }
+    buildLive(); readout(); showValues(); layout();
+  }
+  for (const [id, [key, dec]] of Object.entries(sliders)) {
+    $(id).addEventListener('input', (e) => {
+      const v = dec ? parseFloat(e.target.value) : parseInt(e.target.value, 10);
+      if (id === 'top-size') { if (state.top_lips === 'chamfer') state.upper_chamfer = v; else state.upper_round = v; }
+      else if (id === 'bottom-size') { if (state.bottom_lips === 'chamfer') state.lower_chamfer = v; else state.lower_round = v; }
+      else state[key] = v;
+      if (id === 'hp') $('php').max = state.hp_count;
+      goLive();
+      if (id === 'hp') { centerTarget(); sph.r = fitDistance(); updateCamera(); }
+    });
+  }
+  $('top-lips').addEventListener('change', (e) => { state.top_lips = e.target.value; $('top-size').value = P().topSize; goLive(); });
+  $('bottom-lips').addEventListener('change', (e) => { state.bottom_lips = e.target.value; $('bottom-size').value = P().bottomSize; goLive(); });
+  $('explode').addEventListener('input', (e) => { state.explode = parseFloat(e.target.value); showValues(); layout(); });
+  document.querySelectorAll('input[data-part]').forEach((cb) => cb.addEventListener('change', () => { state.show[cb.dataset.part] = cb.checked; layout(); }));
+  document.querySelectorAll('.views button').forEach((b) => b.addEventListener('click', () => view(b.dataset.view)));
+  $('reset').addEventListener('click', () => {
+    Object.assign(state, EXACT.params, { panelHp: EXACT.panel_hp, exact: true });
+    $('hp').value = state.hp_count; $('front').value = state.front_height; $('rear').value = state.rear_height;
+    $('top-lips').value = state.top_lips; $('bottom-lips').value = state.bottom_lips;
+    $('top-size').value = P().topSize; $('bottom-size').value = P().bottomSize; $('php').value = state.panelHp; $('php').max = state.hp_count;
+    buildExact(); readout(); showValues(); layout(); view('iso');
+  });
+
+  // ---- go --------------------------------------------------------------------
+  applyTheme();
+  $('php').max = state.hp_count;
+  buildExact(); readout(); showValues(); layout();
+  resize(); view('iso');
+})();
+</script>

@@ -44,6 +44,9 @@ cap = end_cap(p, "left")
 - `tests/` — geometry checks: parts are valid, caps fit without clashing,
   screws pass the wall into the tab, nut traps sit behind them, lip styles and
   a parameter sweep build
+- `viewer/` — a browser viewer (Three.js). `python3 viewer/make_viewer.py`
+  embeds the exact meshes into `viewer/dist/eurorack-asym-case.html`; the page
+  also rebuilds an approximate preview in JavaScript when you move its sliders
 - `docs/port-notes.md` — what maps to what, and where the port deliberately
   differs from the source (read this)
 - `docs/port-feasibility.md` — the pre-port assessment
