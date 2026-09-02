@@ -131,6 +131,12 @@ export function caseParams(input: CaseParamsInput = {}): CaseParams {
       throw new Error(`${name} must be at least ${minimum} mm to fit the end cap tab between the rail and the floor`);
     }
   }
+  // the wall top is only wallThickness wide before it drops into the panel recess,
+  // so an upper lip has to be smaller than that to have a face to land on
+  const upper = p.topLips === "round" ? p.upperRound : p.topLips === "chamfer" ? p.upperChamfer : 0;
+  if (upper >= p.wallThickness) {
+    throw new Error(`the top lip (${upper} mm) must be smaller than the wall thickness (${p.wallThickness} mm)`);
+  }
   const innerHalf = p.panelHeight / 2;
   const outerHalf = innerHalf + p.wallThickness;
   return {

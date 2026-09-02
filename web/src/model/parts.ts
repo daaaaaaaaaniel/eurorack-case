@@ -16,6 +16,7 @@ import {
   drawCircle,
   drawRectangle,
   makeCylinder,
+  measureVolume,
   Plane,
   type AnyShape,
   type Drawing,
@@ -245,11 +246,25 @@ export function endCap(input: CaseParamsInput | CaseParams = {}, end: "left" | "
   if (p.closedEnds.includes(end)) throw new Error(`the ${end} end is an integral wall in this configuration`);
   const fl = new Floor(p);
   const x0 = -p.endCapThickness;
+  // The 1.5 mm break around the outer face goes on first, then the lips run into it
+  // (this reproduces the Onshape export exactly). OpenCascade blends a lip into that
+  // break soundly only while the lip is modest -- rounds to 5 mm, chamfers to 2 mm;
+  // beyond that it returns garbage rather than failing -- so larger lips get a
+  // plate without the cosmetic break.
+  const roundMax = Math.max(p.topLips === "round" ? p.upperRound : 0, p.bottomLips === "round" ? p.lowerRound : 0);
+  const chamferMax = Math.max(p.topLips === "chamfer" ? p.upperChamfer : 0, p.bottomLips === "chamfer" ? p.lowerChamfer : 0);
+  const withBreak = p.endCapFaceChamfer > 0 && roundMax <= 5 && chamferMax <= 2;
   let plate = profile(endPlateProfile(p), p.endCapThickness, x0);
-  plate = plate.chamfer(p.endCapFaceChamfer, (e) => e.inPlane("YZ", x0));
+  const nominal = measureVolume(plate) + measureVolume(profile(tabProfile(p, fl), p.endCapTabDepth));
+  if (withBreak) plate = plate.chamfer(p.endCapFaceChamfer, (e) => e.inPlane("YZ", x0));
   plate = applyLips(plate, p, x0, 0);
   const tab = profile(tabProfile(p, fl), p.endCapTabDepth);
   let cap = cutAll(plate.fuse(tab), endScrewCutters(p, fl, p.bottomHoleInset));
+  // a blend that went wrong comes back as a plausible-looking shape with a wild volume
+  const v = measureVolume(cap);
+  if (!(v > 0.75 * nominal && v < nominal)) {
+    throw new Error(`end cap geometry is unsound at these lip sizes (${(v / 1000).toFixed(2)} of ${(nominal / 1000).toFixed(2)} cm³)`);
+  }
   if (end === "right") cap = cap.mirror("YZ", [p.width / 2, 0, 0]);
   return cap;
 }

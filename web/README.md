@@ -30,6 +30,18 @@ npm run build      # -> dist/ (~23 MB, of which the wasm is 23 MB raw / 7 MB gzi
 - `scripts/smoke.mjs` — drives the built app in headless Chromium over the
   DevTools protocol: first build, a rebuild, the asym variant, both exports.
 
+## Limits the kernel imposes
+
+- A top lip must be smaller than the wall thickness: the wall top is only that
+  wide before it drops into the panel recess, so a larger fillet has no face to
+  land on. `caseParams()` refuses it; the page's slider stops at 3.5 mm.
+- The end cap's 1.5 mm outer edge break is only built when the lips are modest
+  (rounds ≤ 5 mm, chamfers ≤ 2 mm). Beyond that OpenCascade does not fail — it
+  returns a plausible-looking solid with a wrong volume — so `endCap()` leaves
+  the break off and checks the volume of what it built against the un-cut plate
+  and tab. The Onshape source has the same blend and would have the same
+  trouble; its defaults (1 mm) are well inside the sound region.
+
 ## Deploying to GitHub Pages
 
 `.github/workflows/pages.yml` builds `web/`, runs the tests, and deploys

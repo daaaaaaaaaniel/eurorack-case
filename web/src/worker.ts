@@ -80,15 +80,31 @@ function stats(p: CaseParams): Stats {
   };
 }
 
+/** Build one part, turning kernel failures and silently empty results into a readable error. */
+function attempt(label: string, fn: () => Shape3D): Shape3D {
+  let shape: Shape3D;
+  try {
+    shape = fn();
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : "";
+    throw new Error(`OpenCascade could not build the ${label} with these values${detail ? ` (${detail})` : ""}. Try a smaller lip size.`);
+  }
+  if (!(measureVolume(shape) > 1e-6)) throw new Error(`The ${label} came out empty with these values. Try a smaller lip size.`);
+  return shape;
+}
+
 async function build(req: BuildRequest): Promise<void> {
   const t0 = performance.now();
   const p = caseParams(req.params);
+  // build everything before touching the published set, so a failure keeps the last good model
+  const next: Partial<Record<PartName, Shape3D>> = {};
+  next.case = attempt("case", () => caseShell(p));
+  if (!p.closedEnds.includes("left")) next.capL = attempt("left end cap", () => endCap(p, "left"));
+  next.capR = attempt("right end cap", () => endCap(p, "right"));
+  next.panel = attempt("blank panel", () => blankPanel(p, Math.min(req.panelHp, p.hpCount)));
   lastParams = p;
   for (const k of Object.keys(shapes) as PartName[]) delete shapes[k];
-  shapes.case = caseShell(p);
-  if (!p.closedEnds.includes("left")) shapes.capL = endCap(p, "left");
-  shapes.capR = endCap(p, "right");
-  shapes.panel = blankPanel(p, Math.min(req.panelHp, p.hpCount));
+  Object.assign(shapes, next);
 
   const parts: Partial<Record<PartName, MeshPayload>> = {};
   const transfer: ArrayBuffer[] = [];

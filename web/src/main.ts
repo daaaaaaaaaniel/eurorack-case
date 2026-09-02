@@ -110,14 +110,16 @@ async function rebuild(): Promise<void> {
     const p = state.params;
     status.innerHTML = `<b>${p.hpCount} HP</b> · ${p.frontHeight}/${p.rearHeight} mm · ${p.leftWall ? "asym" : "sym"} · built in ${(r.ms / 1000).toFixed(1)} s`;
     status.className = "src";
+    banner.classList.remove("show");
     readout();
     layout();
     if (firstBuild) { firstBuild = false; scene.frame(r.stats.width, r.stats.outerDepth, r.stats.height); }
   } catch (err) {
-    status.textContent = "Build failed";
+    // keep the last good model on screen; say what went wrong where the build time normally goes
+    const message = err instanceof Error ? err.message : String(err);
+    status.textContent = message.replace(/\.\s*$/, "");
     status.className = "src bad";
-    banner.querySelector("p")!.textContent = `The model could not be built: ${err instanceof Error ? err.message : String(err)}`;
-    banner.classList.add("show");
+    if (firstBuild) { banner.querySelector("p")!.textContent = `The model could not be built: ${message}`; banner.classList.add("show"); }
   } finally {
     state.building = false;
     if (state.dirty) { state.dirty = false; rebuild(); }
