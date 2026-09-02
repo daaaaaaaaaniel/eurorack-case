@@ -1,24 +1,49 @@
 # eurorack-case-web
 
-The case model in [replicad](https://replicad.xyz) — OpenCascade compiled to
-wasm, so the same B-rep geometry as the CadQuery model can run in a browser.
+The case configurator as a static web app: the model in
+[replicad](https://replicad.xyz) (OpenCascade compiled to wasm, running in a
+web worker), a three.js viewer, and STL / STEP export straight from the
+browser. Same geometry as the CadQuery model, verified against the Onshape
+exports.
 
 ```
 npm install
-npm test          # builds every part in Node and checks it against reference/onshape/*.step
+npm run dev        # http://localhost:5173
+npm test           # builds every part in Node, compares with reference/onshape/*.step
 npm run typecheck
+npm run build      # -> dist/ (~23 MB, of which the wasm is 23 MB raw / 7 MB gzipped)
 ```
 
-- `src/model/params.ts` — `caseParams()`: the same fields as `CaseParams` in
-  `eurorack_case/params.py`, camel-cased, with the derived values.
+## Layout
+
+- `src/model/params.ts` — `caseParams()`: the fields of `CaseParams` in
+  `eurorack_case/params.py`, camel-cased, plus the derived values.
 - `src/model/parts.ts` — `caseShell()`, `endCap()`, `blankPanel()`: a
-  line-for-line port of `eurorack_case/parts.py`. Edge selection uses
-  replicad finders where the Python used centre-point matching.
+  line-for-line port of `eurorack_case/parts.py`, with replicad edge finders
+  where the Python matched edges by centre point.
 - `src/oc.ts` — `initOC()`: starts the wasm kernel and hands it to replicad.
-  Call once before modelling. In Node it finds the wasm itself; in a browser
-  pass `locateFile` pointing at the served `replicad_single.wasm`.
+- `src/worker.ts` — the modelling worker: builds the parts on request, returns
+  meshes + edge lines + volumes, and writes STL/STEP blobs on demand.
+- `src/scene.ts`, `src/main.ts`, `index.html` — the viewer and its controls.
 - `test/matches-onshape.test.ts` — volume (1e-5), face count and bounding
   extents against Onshape's exports for both variants, plus a parameter sweep.
+- `scripts/smoke.mjs` — drives the built app in headless Chromium over the
+  DevTools protocol: first build, a rebuild, the asym variant, both exports.
 
-Not here yet: the viewer and the GitHub Pages deployment. The CadQuery model
-remains the reference implementation on the main branch.
+## Deploying to GitHub Pages
+
+`.github/workflows/pages.yml` builds `web/`, runs the tests, and deploys
+`web/dist` on every push that touches `web/` (branches `claude/replicad-port`
+and `main`), or by hand from the Actions tab. One-time setup in the repository:
+**Settings → Pages → Source: GitHub Actions**. The site then lives at
+`https://<user>.github.io/eurorack-case/`.
+
+The kernel is single-threaded, so no cross-origin-isolation headers are
+needed — Pages can serve it as plain static files. First visit downloads the
+23 MB wasm (7 MB if the CDN gzips it); after that it is cached.
+
+## Timings
+
+In headless Chromium on a laptop-class CPU: kernel start ~10 s on a cold
+cache, first build ~2 s, a rebuild ~1–2 s, STL or STEP export well under a
+second.
