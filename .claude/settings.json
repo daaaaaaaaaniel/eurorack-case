@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cat \"${CLAUDE_PROJECT_DIR:-/home/user/eurorack-case}/.claude/session-prompt.md\" 2>/dev/null | jq -Rs 'if . == \"\" then {} else {hookSpecificOutput:{hookEventName:\"UserPromptSubmit\",additionalContext:.}} end'",
+            "timeout": 10,
+            "suppressOutput": true
+          }
+        ]
+      }
+    ]
+  }
+}
