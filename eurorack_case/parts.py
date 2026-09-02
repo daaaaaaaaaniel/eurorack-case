@@ -68,13 +68,15 @@ def long_edges(body: cq.Workplane, yz_points, tol: float = 0.05) -> cq.Workplane
     This replaces Onshape's history-based edge references: the lip edges are
     known by where they are, so select them by where they are.
     """
-    wanted = []
+    wanted, hit = [], set()
     for e in body.edges("|X").vals():
         c = e.Center()
-        if any(abs(c.y - y) < tol and abs(c.z - z) < tol for y, z in yz_points):
-            wanted.append(e)
-    if len(wanted) != len(yz_points):
-        raise ValueError(f"expected {len(yz_points)} lip edges, found {len(wanted)}")
+        for i, (y, z) in enumerate(yz_points):
+            if abs(c.y - y) < tol and abs(c.z - z) < tol:
+                wanted.append(e)
+                hit.add(i)
+    if len(hit) != len(yz_points):
+        raise ValueError(f"expected lip edges at {len(yz_points)} positions, found {len(hit)}")
     return body.newObject(wanted)
 
 
@@ -167,9 +169,11 @@ def screw_cutters(p: CaseParams, fl: Floor, x: float) -> cq.Workplane:
 
 
 def all_screw_cutters(p: CaseParams, fl: Floor) -> cq.Workplane:
-    left = screw_cutters(p, fl, p.bottom_hole_inset)
+    """Screw sets for every end that takes a removable cap."""
     right = screw_cutters(p, fl, p.width - p.bottom_hole_inset)
-    return left.union(right)
+    if "left" in p.closed_ends:
+        return right
+    return screw_cutters(p, fl, p.bottom_hole_inset).union(right)
 
 
 # --------------------------------------------------------------------------
@@ -215,10 +219,16 @@ def case(p: CaseParams = CaseParams()) -> cq.Workplane:
         nut_slot = (
             cq.Workplane("YZ")
             .center(axis, (nut_top + nut_bottom) / 2)
-            .rect(p.nut_pocket_width, nut_top - nut_bottom)
+            .rect(p.rail_nut_slot_width, nut_top - nut_bottom)
             .extrude(w)
         )
         body = body.cut(bolt_slot).cut(nut_slot)
+
+    if p.left_wall:
+        # the "asym" variant: a plate with the outer profile closes X = 0 and the lips
+        # run along it uninterrupted. Unlike a cap, its outside face is not edge-broken.
+        wall = _profile(end_plate_profile(p), p.end_cap_thickness, x0=-p.end_cap_thickness)
+        body = body.union(wall)
 
     body = apply_lips(body, p, fl)
     return body.cut(all_screw_cutters(p, fl))
@@ -243,6 +253,8 @@ def tab_profile(p: CaseParams, fl: Floor):
 
 def end_cap(p: CaseParams = CaseParams(), end: str = "left") -> cq.Workplane:
     """End cap in its assembled position. `left` closes X = 0, `right` closes X = width."""
+    if end in p.closed_ends:
+        raise ValueError(f"the {end} end is an integral wall in this configuration")
     fl = Floor(p)
     plate = _profile(end_plate_profile(p), p.end_cap_thickness, x0=-p.end_cap_thickness)
     plate = plate.faces("<X").chamfer(p.end_cap_face_chamfer)
@@ -280,7 +292,8 @@ def blank_panel(p: CaseParams = CaseParams(), hp: int = 6, x0: float = 0.0) -> c
 def assembly(p: CaseParams = CaseParams(), panel_hp: int = 6) -> cq.Assembly:
     a = cq.Assembly(name="eurorack_case")
     a.add(case(p), name="case", color=cq.Color(0.55, 0.55, 0.6))
-    a.add(end_cap(p, "left"), name="end_cap_left", color=cq.Color(0.8, 0.5, 0.2))
-    a.add(end_cap(p, "right"), name="end_cap_right", color=cq.Color(0.8, 0.5, 0.2))
+    for end in ("left", "right"):
+        if end not in p.closed_ends:
+            a.add(end_cap(p, end), name=f"end_cap_{end}", color=cq.Color(0.8, 0.5, 0.2))
     a.add(blank_panel(p, panel_hp), name="blank_panel", color=cq.Color(0.85, 0.85, 0.85))
     return a

@@ -229,6 +229,8 @@
         <div class="row"><label for="bottom-lips">Bottom lips</label><span class="val"><span id="bottom-size-v">1.0</span><small>mm</small></span>
           <select id="bottom-lips"><option value="round">Round</option><option value="sharp">Sharp</option><option value="chamfer">Chamfer</option></select>
           <input id="bottom-size" type="range" min="0.5" max="10" step="0.5" value="1"></div>
+        <div class="row"><label for="left-end">Left end</label><span class="val"></span>
+          <select id="left-end"><option value="cap">Removable cap (sym)</option><option value="wall">Integral wall (asym)</option></select></div>
         <div class="row"><label for="php">Blank panel</label><span class="val"><span id="php-v">6</span><small>HP</small></span>
           <input id="php" type="range" min="2" max="40" step="1" value="6"></div>
       </div>
@@ -283,8 +285,8 @@
   const HP = 5.08;
   const D = {
     panelHeight: 129.5, panelT: 2, wallT: 4, bottomT: 4,
-    railDepth: 8, railHeight: 10, railInset: 3, boltW: 3.2, boltDepth: 8,
-    nutW: 5.8 - 0.1, nutT: 2.5, nutDepth: 2,
+    railDepth: 7.798472, railHeight: 10, railInset: 3, boltW: 3.2, boltDepth: 8,
+    nutW: 5.8 - 0.1, nutSlotW: 5.596945, nutT: 2.5, nutDepth: 2,
     capT: 4, tabT: 5, tabDepth: 4 + 0.7 * 6,
     cbDiam: 6, thruDiam: 3.3, holeInset: 4, floorSpacing: 55, wallSpacing: 23,
     panelHoleD: 3.2, panelEdgeInset: 3, panelSideInset: 7.5,
@@ -412,7 +414,7 @@
   function caseProfile(P, fl) {
     const yi = D.panelHeight / 2, yo = yi + D.wallT;
     const rt = -D.panelT, rb = rt - D.railHeight;
-    const ax = yi - D.railInset, bw = D.boltW / 2, nw = D.nutW / 2;
+    const ax = yi - D.railInset, bw = D.boltW / 2, nw = D.nutSlotW / 2;
     const slotB = rt - D.boltDepth, nutTop = rt - D.nutDepth, nutBot = nutTop - D.nutT;
     // rear rail with T-slot, walking from the inner wall top around the rail and back
     const rail = (s) => {
@@ -459,7 +461,8 @@
       g.add(m);
     };
     const down = [-fl.up[0], -fl.up[1], -fl.up[2]];
-    for (const x of [D.holeInset, W - D.holeInset]) {
+    const ends = P.leftWall ? [W - D.holeInset] : [D.holeInset, W - D.holeInset];
+    for (const x of ends) {
       for (const s of [-D.floorSpacing, 0, D.floorSpacing]) {
         const y = s / fl.sec;
         add([x, y, fl.zOuter(y) - 0.2], down);
@@ -498,7 +501,7 @@
   // ---- state ---------------------------------------------------------------
   const state = { ...EXACT.params, panelHp: EXACT.panel_hp, explode: 0, exact: true, show: { case: true, caps: true, panel: true } };
   const P = () => ({
-    hp: state.hp_count, front: state.front_height, rear: state.rear_height,
+    hp: state.hp_count, front: state.front_height, rear: state.rear_height, leftWall: !!state.left_wall,
     topLips: state.top_lips, topSize: state.top_lips === 'chamfer' ? state.upper_chamfer : state.upper_round,
     bottomLips: state.bottom_lips, bottomSize: state.bottom_lips === 'chamfer' ? state.lower_chamfer : state.lower_round,
   });
@@ -520,9 +523,14 @@
     Object.values(groups).forEach(clear);
     addMesh(groups.case, extrudeYZ(caseProfile(p, fl), W, 0), materials.case, true);
     markers(p, fl, groups.case);
-    const [plate, tab] = capGeometry(p, fl, 'left');
-    addMesh(groups.capL, plate, materials.caps, true);
-    addMesh(groups.capL, tab, materials.caps, true);
+    if (p.leftWall) {
+      const [wall] = capGeometry(p, fl, 'left');
+      addMesh(groups.case, wall, materials.case, true);
+    } else {
+      const [plate, tab] = capGeometry(p, fl, 'left');
+      addMesh(groups.capL, plate, materials.caps, true);
+      addMesh(groups.capL, tab, materials.caps, true);
+    }
     const [plateR, tabR] = capGeometry(p, fl, 'right');
     addMesh(groups.capR, plateR, materials.caps, true);
     addMesh(groups.capR, tabR, materials.caps, true);
@@ -551,7 +559,8 @@
     groups.capR.position.set(45 * e, 0, 0);
     groups.panel.position.set(0, 0, 40 * e);
     groups.case.visible = state.show.case;
-    groups.capL.visible = groups.capR.visible = state.show.caps;
+    groups.capL.visible = state.show.caps && !state.left_wall;
+    groups.capR.visible = state.show.caps;
     groups.panel.visible = state.show.panel;
     render();
   }
@@ -661,6 +670,7 @@
   }
   $('top-lips').addEventListener('change', (e) => { state.top_lips = e.target.value; $('top-size').value = P().topSize; goLive(); });
   $('bottom-lips').addEventListener('change', (e) => { state.bottom_lips = e.target.value; $('bottom-size').value = P().bottomSize; goLive(); });
+  $('left-end').addEventListener('change', (e) => { state.left_wall = e.target.value === 'wall'; goLive(); });
   $('explode').addEventListener('input', (e) => { state.explode = parseFloat(e.target.value); showValues(); layout(); });
   document.querySelectorAll('input[data-part]').forEach((cb) => cb.addEventListener('change', () => { state.show[cb.dataset.part] = cb.checked; layout(); }));
   document.querySelectorAll('.views button').forEach((b) => b.addEventListener('click', () => view(b.dataset.view)));
@@ -668,6 +678,7 @@
     Object.assign(state, EXACT.params, { panelHp: EXACT.panel_hp, exact: true });
     $('hp').value = state.hp_count; $('front').value = state.front_height; $('rear').value = state.rear_height;
     $('top-lips').value = state.top_lips; $('bottom-lips').value = state.bottom_lips;
+    $('left-end').value = state.left_wall ? 'wall' : 'cap';
     $('top-size').value = P().topSize; $('bottom-size').value = P().bottomSize; $('php').value = state.panelHp; $('php').max = state.hp_count;
     buildExact(); readout(); showValues(); layout(); view('iso'); exportSizeHint();
   });
@@ -758,6 +769,7 @@
   // ---- go --------------------------------------------------------------------
   applyTheme();
   $('php').max = state.hp_count;
+  $('left-end').value = state.left_wall ? 'wall' : 'cap';
   buildExact(); readout(); showValues(); layout();
   resize(); view('iso');
 })();

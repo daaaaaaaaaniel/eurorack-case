@@ -26,6 +26,9 @@ class CaseParams:
     bottom_lips: str = "round"
     lower_round: float = 1.0
     lower_chamfer: float = 1.0      # Lower_Lip_Bevel
+    left_wall: bool = False         # True = the "asym" Part Studio: X = 0 closed by an
+                                    # integral wall, one removable cap at the far end.
+                                    # False = the "sym" Part Studio: open both ends, two caps.
 
     # --- shell ----------------------------------------------------------
     panel_height: float = 129.5     # PanelHeight: clear width between the inner walls
@@ -34,12 +37,15 @@ class CaseParams:
     bottom_thickness: float = 4.0   # CaseBottomThickness
 
     # --- rails (T-slot blocks under the panel recess) -------------------
-    rail_depth: float = 8.0         # RailBlockDepth
+    rail_depth: float = 7.798472    # drawn with a bare 7.798 in the sketch; the RailBlockDepth
+                                    # variable (8 mm) is never referenced. Matches the STEP.
     rail_height: float = 10.0       # solved height of the rail block
     rail_inset: float = 3.0         # RailBlockPanelInset: bolt axis from the inner wall
     rail_bolt_width: float = 3.2    # RailBlockBoltWidth
     rail_bolt_depth: float = 8.0    # RailBlockBoltDepth
-    rail_nut_width: float = 5.8     # RailBlockNutWidth
+    rail_nut_width: float = 5.8     # RailBlockNutWidth: sizes the nut traps in the end cap tab
+    rail_nut_slot_width: float = 5.596945   # the rail's sliding-nut slot is undimensioned in
+                                    # the sketch and solved to this. Matches the STEP.
     rail_nut_thickness: float = 2.5 # RailBlockNutThickness
     rail_nut_depth: float = 2.0     # RailBlockNutDepth: nut pocket top below the rail top
     nut_clearance: float = 0.1      # pockets are cut RailBlockNutWidth - .1mm
@@ -99,7 +105,12 @@ class CaseParams:
 
     @property
     def nut_pocket_width(self) -> float:
+        """Square nut traps in the end cap tab: RailBlockNutWidth - .1mm."""
         return self.rail_nut_width - self.nut_clearance
+
+    @property
+    def closed_ends(self):
+        return ("left",) if self.left_wall else ()
 
     @property
     def end_cap_tab_depth(self) -> float:

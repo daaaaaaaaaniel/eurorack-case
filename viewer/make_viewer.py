@@ -39,7 +39,7 @@ def main(p: CaseParams = CaseParams(), panel_hp: int = 6):
     }
     data = {"params": {k: getattr(p, k) for k in (
         "hp_count", "front_height", "rear_height", "top_lips", "upper_round", "upper_chamfer",
-        "bottom_lips", "lower_round", "lower_chamfer", "tab_clearance")}, "panel_hp": panel_hp, "meshes": {}}
+        "bottom_lips", "lower_round", "lower_chamfer", "tab_clearance", "left_wall")}, "panel_hp": panel_hp, "meshes": {}}
     for name, wp in parts.items():
         data["meshes"][name] = mesh_b64(wp)
         data["meshes"][name]["volume"] = wp.val().Volume()

@@ -1,0 +1,211 @@
+== configuration inputs ==
+  HP_Count         HP_Count0                isInteger
+  Front Height     Front_Height             isLength
+  Rear Height      RearHeight               isLength
+  Upper Round      Upper_Round              isLength
+  Upper Chamfer    Upper_Chamfer            isLength
+  Lower Round      Lower_Round              isLength
+  Lower Chamfer    Lower_Lip_Bevel          isLength
+  Top Lips         List_sltuiwY7bs5tJx      enum List_sltuiwY7bs5tJx_conf
+  Bottom Lips      List_5KGcbwyvF0AOZo      enum List_5KGcbwyvF0AOZo_conf
+
+== variables ==
+  HP_Count                 ASSIGNED  = #HP_Count0
+  RearHoleSpacing          ASSIGNED  = 23 mm
+  BottomHoleInset          ASSIGNED  = 4 mm
+  BoltCounterboreThick     ASSIGNED  = 1.75 mm
+  BoltCounterboreDiam      ASSIGNED  = 6 mm
+  HP                       ASSIGNED  = 5.08 mm
+  RailBlockDepth           ASSIGNED  = 8 mm
+  RailBlockHeight          ASSIGNED  = 16 mm
+  RailBlockNutThickness    ASSIGNED  = 2.5 mm
+  RailBlockNutWidth        ASSIGNED  = 5.8 mm
+  RailBlockBoltWidth       ASSIGNED  = 3.2mm
+  RailBlockNutDepth        ASSIGNED  = 2 mm
+  RailBlockBoltDepth       ASSIGNED  = 8 mm
+  RailBlockPanelInset      ASSIGNED  = 3 mm
+  BoltPlane_PanelEnd       ASSIGNED  = 3 mm
+  CaseBottomThickness      ASSIGNED  = 4 mm
+  CaseFrontBackThickness   ASSIGNED  = 4 mm
+  CaseRearHeight           ASSIGNED  = #RearHeight
+  CaseFrontHeight          ASSIGNED  = 33 mm
+  PanelHeight              ASSIGNED  = 129.5 mm
+  Rail_Length              ASSIGNED  = 56 mm
+  Railbolt_to_railbolt     ASSIGNED  = 123 mm
+  PanelThickness           ASSIGNED  = 2 mm
+  PanelHoleVerticalInset   ASSIGNED  = 3 mm
+  EndCapThickness          ASSIGNED  = #CaseFrontBackThickness
+  EndCapTabThickness       ASSIGNED  = 5 mm
+  EndCapTabDepth           ASSIGNED  = #BottomHoleInset+(.7*#BoltCounterboreDiam)
+  BoltThrougDiam           ASSIGNED  = 3.3 mm
+  BottomHoleSpacing        ASSIGNED  = 55 mm
+  BaseCase                 MEASURED  = \"?\"
+  BaseCaseInset            ASSIGNED  = #BaseCase-(3*#CaseFrontBackThickness)
+  UpperRoundDiam           ASSIGNED  = 2 mm
+  LowerRoundDiam           ASSIGNED  = 0 mm
+  UpperChamfer             ASSIGNED  = 2 mm
+  LowerChamfer             ASSIGNED  = 2 mm
+
+== sketches ==
+  F3HD5PxY3AAr9PG_3          Rail block profile      50 entities   plane: default plane (Rightplane)
+  FiGsjAS4K608afc_0          Case profile            10 entities   plane: default plane (Rightplane)
+  Foyk2i1MdWTnpLh_2          C-cap profile            4 entities   plane: face traced to sketch (F3HD5PxY3AAr9PG_3)
+  FNqrsvGVGM0ZkbD_3          End cap tab profile      9 entities   plane: face traced to sketch (F3HD5PxY3AAr9PG_3)
+  FkHd7zO9gFunJkQ_4          bottom hole setup 1      4 entities   plane: face traced to sketch (FiGsjAS4K608afc_0)
+  FcjJB77x9zw5ukM_4          bottom hole setup 2      4 entities   plane: face traced to sketch (FiGsjAS4K608afc_0)
+  FEgylpGpriUs7TI_4          front hole setup         7 entities   plane: face traced to sketch (FiGsjAS4K608afc_0)
+  FPs6SSSPjT9zNdc_4          rear hole setup          9 entities   plane: face traced to sketch (FiGsjAS4K608afc_0)
+  FtBciP4FdsrYK6w_6          panel                    4 entities   plane: face traced to sketch (F3HD5PxY3AAr9PG_3)
+  FlpU4qVtZLrTCze_7          panel holes              8 entities   plane: face traced to sketch (FtBciP4FdsrYK6w_6)
+  Fga1cnVS33C7GRM_7          Sketch 4                15 entities   plane: face traced to sketch (FNqrsvGVGM0ZkbD_3)
+  F8wggogTepNUM5x_7          Rear Bolt Capture       15 entities   plane: face traced to sketch (FNqrsvGVGM0ZkbD_3)
+  FvWr5emyZpPuFch_7          Sketch 6                 5 entities   plane: face traced to sketch (FNqrsvGVGM0ZkbD_3)
+  Fqk6yoVrBbiGN3j_7          Sketch 1                 0 entities   plane: face traced to sketch (Foyk2i1MdWTnpLh_2)
+  FlO66UHASJM1bnu_7          Sketch 2                12 entities   plane: default plane (Topplane)
+  FXkKXyVAhY2dCez_8          Sketch 3                 6 entities   plane: face traced to sketch (FlO66UHASJM1bnu_7)
+  FDazl34QFPYVJeX_8          PSU mounts              11 entities   plane: face traced to sketch (FNqrsvGVGM0ZkbD_3)
+  FT56TNE8MwTVFtD_8          Sketch 5                 6 entities   plane: default plane (Rightplane)
+  Ff3uAryMmkQtUPP_8          Sketch 8                 3 entities   plane: face traced to sketch (FlO66UHASJM1bnu_7)
+  FnPuTavsx1H4H3I_8          Sketch 7                 4 entities   plane: face traced to sketch (FDazl34QFPYVJeX_8)
+
+== solid features ==
+  L972   extrude         Case + blocks ex       operationType=NEW bodyType=SOLID endBound=BLIND depth=#HP_Count*#HP nEntities=3
+  L991   booleanBodies   Case + blocks union    operationType=UNION
+  L1075  extrude         C-cap ex               operationType=NEW bodyType=SOLID endBound=BLIND depth=#EndCapThickness nEntities=2
+  L1092  booleanBodies   Case + cap union       operationType=UNION
+  L1260  extrude         Endcap tab ex          operationType=NEW bodyType=SOLID endBound=BLIND depth=#EndCapTabDepth nEntities=1
+  L1279  extrude         Endcap ex              operationType=NEW bodyType=SOLID endBound=BLIND depth=#EndCapThickness nEntities=1
+  L1296  cPlane          interior bottom plane  width=150 mm nEntities=2
+  L1456  extrude         bottom counterbore     operationType=NEW bodyType=SOLID endBound=BLIND depth=#BoltCounterboreThick nEntities=2
+  L1475  linearPattern   bottom cb pattern      operationType=REMOVE patternType=PART distance=#BottomHoleSpacing instanceCount=2 nEntities=1
+  L1490  extrude         bottom through         operationType=NEW bodyType=SOLID endBound=BLIND depth=10 mm nEntities=1
+  L1511  linearPattern   bottom through pattern operationType=REMOVE patternType=PART distance=#BottomHoleSpacing instanceCount=3 nEntities=1
+  L1599  extrude         front counterbore      operationType=NEW bodyType=SOLID endBound=BLIND depth=#BoltCounterboreThick nEntities=2
+  L1618  linearPattern   front cb pattern       operationType=REMOVE patternType=PART distance=#RearHoleSpacing instanceCount=1 nEntities=1
+  L1633  extrude         front through          operationType=NEW bodyType=SOLID endBound=BLIND depth=25 mm nEntities=1
+  L1650  linearPattern   front through pattern  operationType=NEW patternType=PART distance=#RearHoleSpacing instanceCount=1 nEntities=1
+  L1669  booleanBodies   front through cut      operationType=SUBTRACTION
+  L1783  extrude         Rear Counterbore       operationType=NEW bodyType=SOLID endBound=BLIND depth=#BoltCounterboreThick nEntities=2
+  L1802  linearPattern   Rear CB pattern        operationType=REMOVE patternType=PART distance=#RearHoleSpacing instanceCount=3 nEntities=1
+  L1817  extrude         Rear through           operationType=NEW bodyType=SOLID endBound=BLIND depth=10 mm nEntities=1
+  L1838  linearPattern   rear cb cut            operationType=REMOVE patternType=PART distance=#RearHoleSpacing instanceCount=3 nEntities=1
+  L1911  fillet          Fillet 1               filletType=EDGE radius=#Upper_Round width=5 mm nEntities=4
+  L1932  fillet          Fillet 2               filletType=EDGE radius=#LowerRoundDiam width=5 mm nEntities=4
+  L1949  chamfer         Chamfer 1              chamferType=EQUAL_OFFSETS width=#Upper_Chamfer nEntities=2
+  L1968  mirror          Mirror 1               operationType=NEW patternType=PART nEntities=1
+  L1985  booleanBodies   2x tab connect         operationType=UNION
+  L2002  booleanBodies   endcap tab connect     operationType=UNION
+  L2029  booleanBodies   endcap tab sizing      operationType=SUBTRACTION
+  L2104  extrude         panel thick            operationType=NEW bodyType=SOLID endBound=BLIND depth=2 mm nEntities=3
+  L2232  hole            #featureName           holeDiameterV3=3.2 mm holeDepthV3=3.5 mm
+  L2409  extrude         Extrude 7              operationType=REMOVE bodyType=SOLID endBound=BLIND depth=#RailBlockNutDepth nEntities=3
+  L2549  extrude         Extrude 8              operationType=REMOVE bodyType=SOLID endBound=BLIND depth=#RailBlockNutDepth nEntities=3
+  L2630  extrude         Extrude 9              operationType=REMOVE bodyType=SOLID endBound=BLIND depth=#RailBlockNutDepth nEntities=1
+  L2651  fillet          Lower Edges Fillet     filletType=EDGE radius=#Lower_Round width=5 mm nEntities=4
+  L2805  extrude         Extrude 1              operationType=NEW bodyType=SOLID endBound=BLIND depth=2 mm nEntities=3
+  L2826  extrude         Extrude 2              operationType=ADD bodyType=SOLID endBound=BLIND depth=6 mm nEntities=2
+  L2845  extrude         Extrude 3              operationType=ADD bodyType=SOLID endBound=BLIND depth=6 mm nEntities=1
+  L2934  extrude         Extrude 4              operationType=ADD bodyType=SOLID endBound=BLIND depth=10 mm nEntities=2
+  L2951  mateConnector   Mate connector 1       
+  L2968  mateConnector   Mate connector 2       
+  L2985  transform       Transform 3            transformType=ROTATION distance=25 mm nEntities=1
+  L3004  transform       Transform 1            transformType=TRANSFORM_MATE_CONNECTORS distance=25 mm nEntities=1
+  L3019  transform       Transform 2            transformType=TRANSLATION_3D distance=25 mm nEntities=1
+  L3164  extrude         Extrude 5              operationType=ADD bodyType=SOLID endBound=UP_TO_SURFACE depth=25 mm nEntities=4
+  L3249  extrude         Extrude 6              operationType=REMOVE bodyType=SOLID endBound=BLIND depth=25 mm nEntities=1
+  L3270  fillet          Fillet 4               filletType=EDGE radius=3 mm width=5 mm nEntities=4
+  L3285  transform       Transform 4            transformType=TRANSLATION_3D distance=25 mm nEntities=1
+  L3348  hole            #featureName           holeDiameterV3=2 mm holeDepthV3=2.7 mm
+  L3369  chamfer         Lower Lip Chamf        chamferType=EQUAL_OFFSETS width=#Lower_Lip_Bevel nEntities=4
+  L3386  chamfer         Chamfer 2              chamferType=EQUAL_OFFSETS width=1.5 mm nEntities=2
+  L3472  hole            #featureName           holeDiameterV3=2 mm holeDepthV3=5 mm
+  L3489  cPlane          Plane 1                width=150 mm nEntities=2
+  L3506  splitPart       Split 4                splitType=PART
+  L3527  mirror          Mirror 3               operationType=NEW patternType=PART nEntities=2
+  L3544  booleanBodies   Boolean 1              operationType=UNION
+  L3562  cPlane          Plane 2                width=150 mm nEntities=2
+  L3579  splitPart       Split 1                splitType=PART
+  L3598  mirror          Mirror 2               operationType=ADD patternType=PART nEntities=1
+  L3615  splitPart       Split 2                splitType=PART
+  L3632  splitPart       Split 3                splitType=PART
+  L3649  extrude         Extrude 10             operationType=ADD bodyType=SOLID endBound=BLIND depth=25 mm nEntities=1
+  L3666  extrude         Extrude 11             operationType=ADD bodyType=SOLID endBound=BLIND depth=25 mm nEntities=1
+  L3683  extrude         Extrude 12             operationType=ADD bodyType=SOLID endBound=BLIND depth=35 mm nEntities=1
+  L3700  extrude         Extrude 13             operationType=ADD bodyType=SOLID endBound=BLIND depth=35 mm nEntities=1
+  L3719  extrude         Extrude 14             operationType=REMOVE bodyType=SOLID endBound=BLIND depth=25 mm nEntities=1
+  L3740  extrude         Extrude 15             operationType=ADD bodyType=SOLID endBound=UP_TO_SURFACE depth=25 mm nEntities=1
+  L3759  extrude         Extrude 16             operationType=REMOVE bodyType=SOLID endBound=BLIND depth=25 mm nEntities=1
+  L3780  extrude         Extrude 17             operationType=ADD bodyType=SOLID endBound=UP_TO_SURFACE depth=25 mm nEntities=1
+
+== conditional / suppressed features ==
+  Fillet 1               FCjQYeNCXzbMZup_4          guard: !switch (configuration.List_sltuiwY7bs5tJx) { List_sltuiwY7bs5tJx_conf.Default : false, List_sltuiwY7bs5tJx_co
+  Chamfer 1              FRwPt9qVczpM9nA_4          guard: !switch (configuration.List_sltuiwY7bs5tJx) { List_sltuiwY7bs5tJx_conf.Default : true, List_sltuiwY7bs5tJx_con
+  endcap tab sizing      F1AiqOmUxEkecER_6          guard: false
+  Lower Edges Fillet     FHpmxK3OWCIyRoo_7          guard: !switch (configuration.List_5KGcbwyvF0AOZo) { List_5KGcbwyvF0AOZo_conf.Default : false, List_5KGcbwyvF0AOZo_co
+  Sketch 3               FXkKXyVAhY2dCez_8          guard: false
+  PSU mounts             FDazl34QFPYVJeX_8          guard: false
+  Extrude 6              FZDqRtSbp8Wsf7q_8          guard: false
+  Lower Lip Chamf        F4q7MG087crPxlb_8          guard: !switch (configuration.List_5KGcbwyvF0AOZo) { List_5KGcbwyvF0AOZo_conf.Default : true, List_5KGcbwyvF0AOZo_con
+
+== features contributing nothing to this configuration: 10 ==
+  endcap tab sizing      F1AiqOmUxEkecER_6          suppressed
+  Sketch 3               FXkKXyVAhY2dCez_8          suppressed
+  Extrude 4              Fw1a6UVuNIfMqbB_8          depends on a suppressed feature
+  PSU mounts             FDazl34QFPYVJeX_8          suppressed
+  Extrude 5              FiC6SElq5R48HuP_8          depends on a suppressed feature
+  Sketch 5               FT56TNE8MwTVFtD_8          depends on a suppressed feature
+  Extrude 6              FZDqRtSbp8Wsf7q_8          suppressed
+  Fillet 4               FHdXRlIvMxW4HKb_8          depends on a suppressed feature
+  Sketch 7               FnPuTavsx1H4H3I_8          depends on a suppressed feature
+  #featureName           F4ActNE3PHJY9a0_8          depends on a suppressed feature
+
+== sketch constraints ==
+   182  COINCIDENT
+    45  MIRROR
+    44  PARALLEL
+    28  MIDPOINT
+    25  LENGTH
+    24  PERPENDICULAR
+    24  HORIZONTAL
+    18  DISTANCE
+    10  EQUAL
+     9  VERTICAL
+     8  PROJECTED
+     6  DIAMETER
+     5  OFFSET
+     5  CONCENTRIC
+     1  TANGENT
+     1  LINEAR_PATTERN
+
+== driving dimensions: 54 (7 carry no expression) ==
+    4  #BoltCounterboreDiam
+    3  2 mm
+    3  #EndCapTabThickness
+    3  #BottomHoleInset
+    3  #BoltThrougDiam
+    3  #RailBlockNutWidth-.1mm
+    2  #CaseFrontBackThickness
+    2  3 mm
+    2  40 mm
+    2  5 mm
+    2  16 mm
+    1  #PanelHeight
+    1  #PanelThickness
+    1  #PanelHoleVerticalInset
+    1  #RailBlockNutWidth
+    1  #RailBlockNutDepth
+    1  #RailBlockNutThickness
+    1  #RailBlockBoltDepth
+    1  #RailBlockBoltWidth
+    1  #CaseRearHeight
+    1  #Front_Height
+    1  #CaseBottomThickness
+    1  #RailBlockBoltDepth+2mm+2mm+(.5*#BoltCounterboreDiam)
+    1  7.5 mm
+    1  20 mm
+    1  4.75 mm
+    1  25 mm
+    1  12 mm
+    1  0 mm
+
+== topological references: 288 qCompressed queries (154 zlib-compressed) ==

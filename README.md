@@ -1,12 +1,14 @@
 # eurorack-case
 
-A parametric asymmetric Eurorack case in [CadQuery](https://cadquery.readthedocs.io),
-ported from an Onshape Part Studio (`Eurorack v1 asym`).
+A parametric Eurorack case with a sloped floor in [CadQuery](https://cadquery.readthedocs.io),
+ported from two Onshape Part Studios (`Eurorack v1 sym` / `asym`) and verified
+against their STEP exports.
 
 ```
 pip install cadquery
 python3 build.py                                  # 26 HP, 30/30 mm walls, round lips
 python3 build.py --hp 84 --front 30 --rear 80 --top-lips chamfer --tab-clearance 0.2
+python3 build.py --variant asym                   # one end an integral wall, one cap
 python3 -m pytest tests
 ```
 
@@ -15,8 +17,9 @@ python3 -m pytest tests
 
 ## Parts
 
-- **case** — sloped-floor shell with T-slot rails under a 2 mm panel recess,
-  open at both ends, counterbored M3 screw holes for the end caps.
+- **case** — sloped-floor shell with T-slot rails under a 2 mm panel recess and
+  counterbored M3 screw holes for the end caps. Open at both ends (`sym`), or
+  closed at one end by an integral wall (`asym`, `left_wall=True`).
 - **end_cap_left / end_cap_right** — 4 mm plate with a 5 mm tab that plugs into
   the shell and carries square M3 nut traps behind every screw.
 - **blank_panel** — a blank module panel for checking the rail spacing.
@@ -54,5 +57,7 @@ cap = end_cap(p, "left")
   differs from the source (read this)
 - `docs/port-feasibility.md` — the pre-port assessment
 - `tools/fs_inventory.py` — inventory extractor for the Onshape export
-- `reference/Eurorackv1asym.fs` — the source FeatureScript
+- `reference/Eurorackv1asym.fs`, `Eurorackv1sym.fs` — the source FeatureScript
+- `reference/onshape/` — Onshape's STEP exports of both variants, which
+  `tests/test_matches_onshape.py` checks the port against
 - `poc/` — the feasibility spike

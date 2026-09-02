@@ -21,6 +21,8 @@ def parse(argv=None) -> argparse.Namespace:
     ap.add_argument("--hp", type=int, default=d.hp_count, help="case width in HP")
     ap.add_argument("--front", type=float, default=d.front_height, help="front wall height, mm")
     ap.add_argument("--rear", type=float, default=d.rear_height, help="rear wall height, mm")
+    ap.add_argument("--variant", choices=("sym", "asym"), default="sym",
+                    help="sym: open both ends, two caps. asym: integral wall at one end, one cap")
     ap.add_argument("--top-lips", choices=LIP_STYLES, default=d.top_lips)
     ap.add_argument("--upper-round", type=float, default=d.upper_round)
     ap.add_argument("--upper-chamfer", type=float, default=d.upper_chamfer)
@@ -40,7 +42,7 @@ def params_from_args(a: argparse.Namespace) -> CaseParams:
         hp_count=a.hp, front_height=a.front, rear_height=a.rear,
         top_lips=a.top_lips, upper_round=a.upper_round, upper_chamfer=a.upper_chamfer,
         bottom_lips=a.bottom_lips, lower_round=a.lower_round, lower_chamfer=a.lower_chamfer,
-        tab_clearance=a.tab_clearance,
+        tab_clearance=a.tab_clearance, left_wall=(a.variant == "asym"),
     )
 
 
@@ -49,12 +51,11 @@ def main(argv=None) -> None:
     p = params_from_args(a)
     a.out.mkdir(parents=True, exist_ok=True)
 
-    parts = {
-        "case": case(p),
-        "end_cap_left": end_cap(p, "left"),
-        "end_cap_right": end_cap(p, "right"),
-        f"blank_panel_{a.panel_hp}hp": blank_panel(p, a.panel_hp),
-    }
+    parts = {"case": case(p)}
+    for end in ("left", "right"):
+        if end not in p.closed_ends:
+            parts[f"end_cap_{end}"] = end_cap(p, end)
+    parts[f"blank_panel_{a.panel_hp}hp"] = blank_panel(p, a.panel_hp)
     for name, part in parts.items():
         solid = part.val()
         if not solid.isValid():

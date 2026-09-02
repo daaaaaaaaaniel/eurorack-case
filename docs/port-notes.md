@@ -3,6 +3,33 @@
 How `eurorack_case/` relates to the Onshape source, and where it deliberately
 differs. Read `port-feasibility.md` first for what the source contains.
 
+## Verified against Onshape
+
+`reference/onshape/` holds STEP exports of both Part Studios at the default
+configuration, and `tests/test_matches_onshape.py` checks the port against
+them. Every part matches to better than 0.001 % in volume with identical face
+counts and bounding extents:
+
+| Onshape export | port | volume |
+|---|---|---|
+| `sym` Part 7 (case) | `case(CaseParams())` | 111.5710 cm³ |
+| `sym` Part 6 / endcap | `end_cap(p, "left")` / `"right"` | 21.7197 cm³ |
+| `asym` case | `case(CaseParams(left_wall=True))` | 128.4112 cm³ |
+| `asym` endcap | `end_cap(p, "right")` | 21.7197 cm³ |
+
+## The two Part Studios
+
+`Eurorack v1 sym` and `Eurorack v1 asym` are the same design with different
+ends, not different wall heights (both default to 30/30 mm):
+
+- **sym** — shell open at both ends, two removable end caps. `left_wall=False`.
+- **asym** — X = 0 closed by an integral 4 mm wall with the outer profile, one
+  removable cap at the far end, no screw holes at the closed end. `left_wall=True`.
+
+The `sym` source is the `asym` source plus four features (`Plane 1`, `Split 4`,
+`Mirror 3`, `Boolean 1`) that cut the shell at mid-length and mirror the open
+half over the walled one.
+
 ## The parts
 
 | part | Onshape origin |
@@ -24,9 +51,9 @@ YZ plane here; its `Rightplane` x is this Y and its y is this Z.
 
 ## Where the port differs from the source, on purpose
 
-**Both ends are the same.** The source builds an integral end wall on one end,
-then splits the shell at mid-length and mirrors the open half over it. The port
-just builds the open shell — same result, none of the history.
+**Ends are built directly.** The sources build an integral wall, then (in `sym`)
+split the shell and mirror the open half over it. The port builds each end as
+asked — the same result, none of the history.
 
 **Bottom screws: three counterbores, centred.** The source patterns 3 through
 holes but only 2 counterbores, and both patterns run one way from the floor's
@@ -54,12 +81,31 @@ geometry would self-intersect there. `CaseParams` refuses it.
 **`Fillet 2` is dropped.** It is unconditional in the source but its radius is
 `#LowerRoundDiam = 0 mm`, so it never produced geometry.
 
+**`Chamfer 2` only breaks the removable cap's outer face.** The source selects
+the outer face of the integral wall too, but the `asym` STEP shows no chamfer
+there, so that reference must fail silently in Onshape. The port follows the
+export.
+
+**Two un-round numbers are kept as they are.** The rail block is 7.798 mm deep
+(`rail_depth`) and its sliding-nut slot is 5.597 mm wide (`rail_nut_slot_width`).
+Neither is dimensioned in the source sketch — the block was drawn with a bare
+value and the slot width is unconstrained — so these are what the solver left,
+and the STEP exports carry them. The `RailBlockDepth` variable (8 mm) is never
+referenced. Both are named parameters; set them to 8.0 and 5.6 if those were the
+intent. The nut *traps* in the end cap tab are a separate, dimensioned 5.7 mm.
+
 **Variables the source defines but never uses** — `RailBlockHeight` (16, the
 rail is actually 10 tall), `Rail_Length`, `Railbolt_to_railbolt`, `BaseCase`,
 `BaseCaseInset`, `UpperRoundDiam`, `LowerRoundDiam`, `UpperChamfer`,
 `LowerChamfer`, `BoltPlane_PanelEnd` — are not carried over.
 
 ## Not ported
+
+**The tail of the `asym` tree** (`Mirror 1`, `2x tab connect`, `endcap tab
+connect`, `Split 2/3`, `Extrude 10–17`): read literally these fuse the tab into
+the shell and extend it by 25–35 mm. The exported parts show none of that — the
+end cap is a separate 21.72 cm³ part in both variants — so they are dead edits
+and the port ignores them.
 
 **The floor bracket** (`Sketch 2`, `Extrude 1–3`, `Sketch 8`, the mate
 connectors and `Transform 1–4`): a 40 × 20 × 2 mm plate with two 6 mm steps and
