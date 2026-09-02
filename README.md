@@ -46,7 +46,10 @@ cap = end_cap(p, "left")
   a parameter sweep build
 - `viewer/` — a browser viewer (Three.js). `python3 viewer/make_viewer.py`
   embeds the exact meshes into `viewer/dist/eurorack-asym-case.html`; the page
-  also rebuilds an approximate preview in JavaScript when you move its sliders
+  also rebuilds an approximate preview in JavaScript when you move its sliders,
+  and can save what it is showing as ASCII STL (published as a Claude artifact
+  with the `downloads` capability; the host allows no `.stl` extension, so the
+  file arrives as `.stl.txt` to be renamed)
 - `docs/port-notes.md` — what maps to what, and where the port deliberately
   differs from the source (read this)
 - `docs/port-feasibility.md` — the pre-port assessment
