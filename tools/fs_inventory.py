@@ -153,6 +153,45 @@ def sketch_planes(src):
 DIM_TYPES = "LENGTH|DISTANCE|DIAMETER|OFFSET"
 
 
+def dead_features(src, meta, qmap):
+    """Features that contribute nothing to this configuration.
+
+    A feature guarded by `if (false)` is suppressed outright. Anything
+    referencing its geometry then fails too -- silently, because the export
+    wraps every feature call in `try(...)`. So suppression propagates.
+    """
+    bodies, cur = {}, None
+    for line in src.split("\n"):
+        m = re.match(r"\s*features\.(\w+) = function\(id\)", line)
+        if m:
+            cur = m.group(1)
+            bodies[cur] = []
+            continue
+        if cur:
+            bodies[cur].append(line)
+
+    def referenced(fid):
+        refs = set()
+        for var in re.findall(r"(\w+)_query", "\n".join(bodies[fid])):
+            q = qmap.get(var, "")
+            refs |= set(re.findall(r"\$IdA1S[0-9a-f.]+\$(F[A-Za-z0-9_]+?)(?:wireOp|Op|$)", decompress(q)))
+            refs |= set(re.findall(r'qSketchRegion\(id \+ "([^"]+)"', q))
+        return refs
+
+    dead = {f for f, (guard, _) in meta.items() if guard == "false"}
+    while True:
+        grown = {f for f in bodies if f not in dead and referenced(f) & dead}
+        if not grown:
+            return dead
+        dead |= grown
+
+
+def query_map(src):
+    qmap = dict(re.findall(r'(\w+)_query=qCompressed\(1\.0,"([^"]*)"', src))
+    qmap.update(dict(re.findall(r"(\w+)_query = (qSketchRegion\([^)]*\))", src)))
+    return qmap
+
+
 def dimensions(src):
     """Driving dimensions and their expressions.
 
@@ -202,6 +241,13 @@ def main(path):
     for fid, (guard, name) in meta.items():
         if guard != "true":
             print(f"  {str(name):22s} {fid:26s} guard: {guard[:110]}")
+
+    dead = dead_features(src, meta, query_map(src))
+    print(f"\n== features contributing nothing to this configuration: {len(dead)} ==")
+    for fid in meta:
+        if fid in dead:
+            why = "suppressed" if meta[fid][0] == "false" else "depends on a suppressed feature"
+            print(f"  {str(meta[fid][1]):22s} {fid:26s} {why}")
 
     print("\n== sketch constraints ==")
     for k, v in Counter(re.findall(r"ConstraintType\.(\w+)", src)).most_common():
