@@ -234,7 +234,7 @@
         <div class="row"><label for="php">Blank panel</label><span class="val"><span id="php-v">6</span><small>HP</small></span>
           <input id="php" type="range" min="2" max="40" step="1" value="6"></div>
       </div>
-      <p class="note" id="live-note">Moving a slider switches to a live preview built in the browser: screw positions become markers and nut traps are left out. The exact geometry for any setting comes from <code>build.py</code>.</p>
+      <p class="note" id="live-note">Moving a control switches to a live preview built in the browser. While a slider is dragging, screws show as markers; on release the holes, counterbores and nut traps are cut for real, so what you see and what you save is complete. Lip rounds are drawn as 8-segment arcs. The B-rep geometry for any setting comes from <code>build.py</code>.</p>
       <div class="actions">
         <button type="button" class="btn" id="reset">Back to exact mesh</button>
       </div>
@@ -256,7 +256,7 @@
         <button type="button" class="btn" id="export-btn">Save STL</button>
         <span class="status" id="export-status" role="status" aria-live="polite"></span>
       </div>
-      <p class="note">ASCII STL in millimetres, of whatever the view is showing right now — the exact mesh or the live preview. Claude only allows a fixed set of file extensions, so it is saved as <code>.stl.txt</code>; rename it to <code>.stl</code> before slicing.</p>
+      <p class="note">ASCII STL in millimetres of whatever the view is showing — the exact mesh, or the live preview with its holes and nut traps cut. Claude only allows a fixed set of file extensions, so it is saved as <code>.stl.txt</code>; rename it to <code>.stl</code> before slicing.</p>
     </section>
 
     <section>
@@ -277,6 +277,9 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
+/*__CSG_JS__*/
+</script>
+<script>
 (function () {
   'use strict';
   const EXACT = /*__EXACT_DATA__*/null;
@@ -288,7 +291,7 @@
     railDepth: 7.798472, railHeight: 10, railInset: 3, boltW: 3.2, boltDepth: 8,
     nutW: 5.8 - 0.1, nutSlotW: 5.596945, nutT: 2.5, nutDepth: 2,
     capT: 4, tabT: 5, tabDepth: 4 + 0.7 * 6,
-    cbDiam: 6, thruDiam: 3.3, holeInset: 4, floorSpacing: 55, wallSpacing: 23,
+    cbDiam: 6, cbDepth: 1.75, thruDiam: 3.3, holeInset: 4, floorSpacing: 55, wallSpacing: 23, chamfer: 1.5,
     panelHoleD: 3.2, panelEdgeInset: 3, panelSideInset: 7.5,
   };
 
@@ -346,7 +349,12 @@
   function addMesh(g, geometry, mat, withEdges) {
     geometry.computeVertexNormals();
     g.add(new THREE.Mesh(geometry, mat));
-    if (withEdges) g.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry, 25), edgeMat));
+    if (withEdges) outline(g, geometry);
+  }
+  // Crisp edge lines. For CSG output the lines come from the un-cut extrusion, whose
+  // edges are the profile's; a boolean's triangle soup would draw its seams.
+  function outline(g, geometry) {
+    g.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry, 25), edgeMat));
   }
 
   // ---- exact meshes from CadQuery -----------------------------------------
@@ -451,25 +459,155 @@
     return zs;
   }
 
-  function markers(P, fl, g) {
-    const yi = D.panelHeight / 2, yo = yi + D.wallT, W = P.hp * HP;
-    const disc = new THREE.CylinderGeometry(D.cbDiam / 2, D.cbDiam / 2, 0.4, 24);
-    const add = (pos, normal) => {
-      const m = new THREE.Mesh(disc, materials.marker);
-      m.position.set(pos[0], pos[1], pos[2]);
-      m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(normal[0], normal[1], normal[2]));
-      g.add(m);
-    };
+  // Every screw at one end of the case: where it enters, which way it goes in.
+  function screwSites(P, fl, x) {
+    const yi = D.panelHeight / 2, yo = yi + D.wallT;
     const down = [-fl.up[0], -fl.up[1], -fl.up[2]];
-    const ends = P.leftWall ? [W - D.holeInset] : [D.holeInset, W - D.holeInset];
-    for (const x of ends) {
-      for (const s of [-D.floorSpacing, 0, D.floorSpacing]) {
-        const y = s / fl.sec;
-        add([x, y, fl.zOuter(y) - 0.2], down);
-      }
-      for (const z of wallHoleZs(P, fl, P.front, -(yi - D.tabT))) add([x, -yo - 0.2, z], [0, -1, 0]);
-      for (const z of wallHoleZs(P, fl, P.rear, yi - D.tabT)) add([x, yo + 0.2, z], [0, 1, 0]);
+    const along = [0, 1 / fl.sec, fl.slope / fl.sec];      // unit vector down the floor's slope
+    const sites = [];
+    for (const s of [-D.floorSpacing, 0, D.floorSpacing]) {
+      sites.push({ p: [x, s * along[1], fl.zOuter(0) + s * along[2]], n: down, u: along });
     }
+    for (const z of wallHoleZs(P, fl, P.front, -(yi - D.tabT))) sites.push({ p: [x, -yo, z], n: [0, -1, 0], u: [0, 0, 1] });
+    for (const z of wallHoleZs(P, fl, P.rear, yi - D.tabT)) sites.push({ p: [x, yo, z], n: [0, 1, 0], u: [0, 0, 1] });
+    return sites;
+  }
+  function screwEnds(P) {
+    const W = P.hp * HP;
+    return P.leftWall ? [W - D.holeInset] : [D.holeInset, W - D.holeInset];
+  }
+
+  // Quick stand-ins drawn while a slider is moving; the real cuts follow on release.
+  function markers(P, fl, g) {
+    const disc = new THREE.CylinderGeometry(D.cbDiam / 2, D.cbDiam / 2, 0.4, 24);
+    for (const x of screwEnds(P)) {
+      for (const s of screwSites(P, fl, x)) {
+        const m = new THREE.Mesh(disc, materials.marker);
+        m.position.set(s.p[0] - s.n[0] * 0.2, s.p[1] - s.n[1] * 0.2, s.p[2] - s.n[2] * 0.2);
+        m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(s.n[0], s.n[1], s.n[2]));
+        g.add(m);
+      }
+    }
+  }
+
+  // ---- real cuts: CSG on the preview meshes ------------------------------------
+  const V = (a) => new CSG.Vector(a[0], a[1], a[2]);
+  const add3 = (a, b, k) => [a[0] + b[0] * k, a[1] + b[1] * k, a[2] + b[2] * k];
+  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  function toCSG(geometry) {
+    const pos = geometry.attributes.position, idx = geometry.index, n = idx ? idx.count : pos.count;
+    const at = (i) => { const k = idx ? idx.getX(i) : i; return [pos.getX(k), pos.getY(k), pos.getZ(k)]; };
+    const polys = [];
+    for (let i = 0; i < n; i += 3) {
+      const a = at(i), b = at(i + 1), c = at(i + 2);
+      const nn = cross([b[0] - a[0], b[1] - a[1], b[2] - a[2]], [c[0] - a[0], c[1] - a[1], c[2] - a[2]]);
+      const l = Math.hypot(nn[0], nn[1], nn[2]); if (l < 1e-9) continue;
+      const nv = V([nn[0] / l, nn[1] / l, nn[2] / l]);
+      polys.push(new CSG.Polygon([new CSG.Vertex(V(a), nv), new CSG.Vertex(V(b), nv), new CSG.Vertex(V(c), nv)]));
+    }
+    return CSG.fromPolygons(polys);
+  }
+  function fromCSG(csg) {
+    const out = [];
+    for (const poly of csg.toPolygons()) {
+      const v = poly.vertices;
+      for (let i = 2; i < v.length; i++) out.push(v[0].pos.x, v[0].pos.y, v[0].pos.z, v[i - 1].pos.x, v[i - 1].pos.y, v[i - 1].pos.z, v[i].pos.x, v[i].pos.y, v[i].pos.z);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(out), 3));
+    return g;
+  }
+  // A box with axes u, v, w (unit, right-handed) and half-sizes h, centred at c.
+  function orientedBox(c, u, v, w, h) {
+    const corner = (su, sv, sw) => V(add3(add3(add3(c, u, su * h[0]), v, sv * h[1]), w, sw * h[2]));
+    const face = (pts, nrm) => new CSG.Polygon(pts.map((p) => new CSG.Vertex(p, V(nrm))));
+    const p = {};
+    for (const su of [-1, 1]) for (const sv of [-1, 1]) for (const sw of [-1, 1]) p[[su, sv, sw]] = corner(su, sv, sw);
+    const neg = (a) => [-a[0], -a[1], -a[2]];
+    return CSG.fromPolygons([
+      face([p[[1, -1, -1]], p[[1, 1, -1]], p[[1, 1, 1]], p[[1, -1, 1]]], u),
+      face([p[[-1, -1, -1]], p[[-1, -1, 1]], p[[-1, 1, 1]], p[[-1, 1, -1]]], neg(u)),
+      face([p[[-1, 1, -1]], p[[-1, 1, 1]], p[[1, 1, 1]], p[[1, 1, -1]]], v),
+      face([p[[-1, -1, -1]], p[[1, -1, -1]], p[[1, -1, 1]], p[[-1, -1, 1]]], neg(v)),
+      face([p[[-1, -1, 1]], p[[1, -1, 1]], p[[1, 1, 1]], p[[-1, 1, 1]]], w),
+      face([p[[-1, -1, -1]], p[[-1, 1, -1]], p[[1, 1, -1]], p[[1, -1, -1]]], neg(w)),
+    ]);
+  }
+  const cyl = (a, b, r) => CSG.cylinder({ start: a, end: b, radius: r, slices: 20 });
+  // Cutters for one screw site: counterbore, through hole, nut trap. `into` = outer surface to tab's inner face.
+  function screwCutters(site, into, which) {
+    const { p, n, u } = site, out = [];
+    const outside = add3(p, n, 0.5);
+    if (which.counterbore) out.push(cyl(outside, add3(p, n, -D.cbDepth), D.cbDiam / 2));
+    if (which.through) out.push(cyl(outside, add3(p, n, -(into + 1)), D.thruDiam / 2));
+    if (which.pocket) {
+      const depth = D.nutDepth + 0.05, w = D.nutW / 2;
+      const c = add3(p, n, -(into + 0.05 - depth / 2));
+      const v = cross(n, u);
+      out.push(orientedBox(c, u, v, n, [w, w, depth / 2]));
+    }
+    return out;
+  }
+  function unionAll(list) { let acc = null; for (const s of list) acc = acc ? acc.union(s) : s; return acc; }
+  function subtractAll(base, cutters) { return cutters.length ? base.subtract(unionAll(cutters)) : base; }
+  // Equal-distance chamfer along an outer-face edge: subtract a wedge lying on the chamfer plane.
+  function chamferWedge(edgeMid, e, nA, nB, length, d) {
+    const m = [nA[0] + nB[0], nA[1] + nB[1], nA[2] + nB[2]], lm = Math.hypot(m[0], m[1], m[2]);
+    const mu = [m[0] / lm, m[1] / lm, m[2] / lm], k = cross(e, mu);
+    const half = 6, c = add3(edgeMid, mu, -d / Math.SQRT2 + half);
+    return orientedBox(c, e, mu, k, [length / 2 + 10, half, half]);
+  }
+  function capPlateChamfer(P, fl, x0) {
+    const yo = D.panelHeight / 2 + D.wallT, W = 2 * yo;
+    const outer = x0 < 0 ? [-1, 0, 0] : [1, 0, 0];
+    const dy = 2 * yo, dz = P.front - P.rear, L = Math.hypot(dy, dz);
+    const along = [0, dy / L, dz / L], down = [-fl.up[0], -fl.up[1], -fl.up[2]];
+    return [
+      chamferWedge([x0, 0, 0], [0, 1, 0], outer, [0, 0, 1], W, D.chamfer),
+      chamferWedge([x0, -yo, -P.front / 2], [0, 0, 1], outer, [0, -1, 0], P.front, D.chamfer),
+      chamferWedge([x0, yo, -P.rear / 2], [0, 0, 1], outer, [0, 1, 0], P.rear, D.chamfer),
+      chamferWedge([x0, 0, fl.zOuter(0)], along, outer, down, L, D.chamfer),
+    ];
+  }
+
+  function finalizeLive() {
+    if (!state.livePending) return;
+    const p = P(), fl = floorOf(p), W = p.hp * HP, into = D.wallT + D.tabT;
+    const t0 = performance.now();
+    // case
+    let shell = toCSG(extrudeYZ(caseProfile(p, fl), W, 0));
+    if (p.leftWall) shell = shell.union(toCSG(capGeometry(p, fl, 'left')[0]));
+    const caseCuts = [];
+    for (const x of screwEnds(p)) for (const s of screwSites(p, fl, x)) caseCuts.push(...screwCutters(s, into, { counterbore: true, through: true }));
+    shell = subtractAll(shell, caseCuts);
+    clear(groups.case);
+    addMesh(groups.case, fromCSG(shell), materials.case, false);
+    outline(groups.case, extrudeYZ(caseProfile(p, fl), W, 0));
+    if (p.leftWall) outline(groups.case, capGeometry(p, fl, 'left')[0]);
+    // caps
+    const buildCap = (end, x) => {
+      const [plate, tab] = capGeometry(p, fl, end);
+      let cap = toCSG(plate).union(toCSG(tab));
+      const cuts = capPlateChamfer(p, fl, end === 'left' ? -D.capT : W + D.capT);
+      for (const s of screwSites(p, fl, x)) cuts.push(...screwCutters(s, into, { through: true, pocket: true }));
+      return [fromCSG(subtractAll(cap, cuts)), plate, tab];
+    };
+    clear(groups.capL); clear(groups.capR);
+    for (const [g, end, x] of [[groups.capL, 'left', D.holeInset], [groups.capR, 'right', W - D.holeInset]]) {
+      if (end === 'left' && p.leftWall) continue;
+      const [cut, plate, tab] = buildCap(end, x);
+      addMesh(g, cut, materials.caps, false);
+      outline(g, plate); outline(g, tab);
+    }
+    state.livePending = false;
+    $('src').innerHTML = 'Live preview · <b>' + p.hp + ' HP</b> · ' + p.front + '/' + p.rear + ' mm';
+    render();
+    return performance.now() - t0;
+  }
+  let finalizeTimer = 0;
+  function scheduleFinalize(delay) {
+    clearTimeout(finalizeTimer);
+    finalizeTimer = setTimeout(() => { finalizeLive(); exportSizeHint(); }, delay);
   }
 
   function capGeometry(P, fl, end) {
@@ -536,7 +674,8 @@
     addMesh(groups.capR, tabR, materials.caps, true);
     addMesh(groups.panel, panelGeometry(Math.min(state.panelHp, p.hp)), materials.panel, true);
     $('vol-case').textContent = ''; $('vol-caps').textContent = ''; $('vol-panel').textContent = '';
-    $('src').innerHTML = 'Live preview · <b>' + p.hp + ' HP</b> · ' + p.front + '/' + p.rear + ' mm';
+    $('src').innerHTML = 'Live preview · <b>' + p.hp + ' HP</b> · ' + p.front + '/' + p.rear + ' mm · cutting holes…';
+    state.livePending = true;
   }
 
   function readout() {
@@ -653,9 +792,10 @@
     $('explode-v').textContent = state.explode.toFixed(2);
     $('top-size').disabled = state.top_lips === 'sharp'; $('bottom-size').disabled = state.bottom_lips === 'sharp';
   }
-  function goLive() {
+  function goLive(delay) {
     if (state.exact) { state.exact = false; }
     buildLive(); readout(); showValues(); layout();
+    scheduleFinalize(delay === undefined ? 350 : delay);
   }
   for (const [id, [key, dec]] of Object.entries(sliders)) {
     $(id).addEventListener('input', (e) => {
@@ -667,6 +807,7 @@
       goLive();
       if (id === 'hp') { centerTarget(); sph.r = fitDistance(); updateCamera(); }
     });
+    $(id).addEventListener('change', () => scheduleFinalize(0));
   }
   $('top-lips').addEventListener('change', (e) => { state.top_lips = e.target.value; $('top-size').value = P().topSize; goLive(); });
   $('bottom-lips').addEventListener('change', (e) => { state.bottom_lips = e.target.value; $('bottom-size').value = P().bottomSize; goLive(); });
@@ -675,6 +816,7 @@
   document.querySelectorAll('input[data-part]').forEach((cb) => cb.addEventListener('change', () => { state.show[cb.dataset.part] = cb.checked; layout(); }));
   document.querySelectorAll('.views button').forEach((b) => b.addEventListener('click', () => view(b.dataset.view)));
   $('reset').addEventListener('click', () => {
+    clearTimeout(finalizeTimer); state.livePending = false;
     Object.assign(state, EXACT.params, { panelHp: EXACT.panel_hp, exact: true });
     $('hp').value = state.hp_count; $('front').value = state.front_height; $('rear').value = state.rear_height;
     $('top-lips').value = state.top_lips; $('bottom-lips').value = state.bottom_lips;
@@ -713,6 +855,7 @@
   }
   const exportSel = $('export-part'), exportBtn = $('export-btn'), exportStatus = $('export-status');
   function exportSelection() {
+    if (!state.exact) { clearTimeout(finalizeTimer); finalizeLive(); }
     const p = P(), which = exportSel.value;
     const chosen = which === 'all'
       ? Object.entries(groups).filter(([, g]) => g.visible).map(([k]) => k)
@@ -765,6 +908,8 @@
     });
   }
   setupDownloads();
+
+  window.__dbg = { toCSG, fromCSG, cyl, orientedBox, extrudeYZ, caseProfile, capGeometry, floorOf, P, screwSites, screwEnds, screwCutters, capPlateChamfer, subtractAll, unionAll, state };
 
   // ---- go --------------------------------------------------------------------
   applyTheme();

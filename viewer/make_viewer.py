@@ -45,6 +45,7 @@ def main(p: CaseParams = CaseParams(), panel_hp: int = 6):
         data["meshes"][name]["volume"] = wp.val().Volume()
     html = (HERE / "template.html").read_text()
     html = html.replace("/*__EXACT_DATA__*/null", json.dumps(data))
+    html = html.replace("/*__CSG_JS__*/", (HERE / "vendor" / "csg.js").read_text())
     out = HERE / "dist" / "eurorack-asym-case.html"
     out.parent.mkdir(exist_ok=True)
     out.write_text(html)

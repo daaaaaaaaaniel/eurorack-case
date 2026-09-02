@@ -49,8 +49,10 @@ cap = end_cap(p, "left")
   a parameter sweep build
 - `viewer/` — a browser viewer (Three.js). `python3 viewer/make_viewer.py`
   embeds the exact meshes into `viewer/dist/eurorack-asym-case.html`; the page
-  also rebuilds an approximate preview in JavaScript when you move its sliders,
-  and can save what it is showing as ASCII STL (published as a Claude artifact
+  also rebuilds either variant in JavaScript when you move its sliders — profile
+  extrusions with the screw holes, counterbores and nut traps cut by CSG
+  (`viewer/vendor/csg.js`, MIT), within 0.01 % of the CadQuery volumes — and
+  can save what it is showing as ASCII STL (published as a Claude artifact
   with the `downloads` capability; the host allows no `.stl` extension, so the
   file arrives as `.stl.txt` to be renamed)
 - `docs/port-notes.md` — what maps to what, and where the port deliberately
