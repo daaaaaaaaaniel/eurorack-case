@@ -96,6 +96,11 @@ class CaseParams:
         return self.inner_half + self.wall_thickness
 
     @property
+    def outer_depth(self) -> float:
+        """Front outer face to rear outer face -- Onshape's measured `BaseCase` (137.5)."""
+        return 2 * self.outer_half
+
+    @property
     def rail_top(self) -> float:
         return -self.panel_thickness
 
