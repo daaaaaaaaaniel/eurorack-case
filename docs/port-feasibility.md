@@ -1,5 +1,8 @@
 # Porting `Eurorackv1asym` from FeatureScript to CadQuery — feasibility
 
+> Written before the port. The port itself lives in `eurorack_case/`; see
+> `port-notes.md` for what was done and where it deviates.
+
 **Verdict: yes, it is possible — but it is a re-implementation, not a translation.**
 
 Nothing in the model needs geometry CadQuery/OCCT cannot produce. Everything is
