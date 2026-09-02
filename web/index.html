@@ -69,7 +69,13 @@
   .part { display: flex; align-items: center; gap: 10px; cursor: pointer; }
   .part input { margin: 0; accent-color: var(--accent); }
   .sw { width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--edge); flex: none; }
-  .part .vol { margin-left: auto; color: var(--muted); font: 12px/1 "IBM Plex Mono", ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+  .parts .vol { margin-left: auto; color: var(--muted); font: 12px/1 "IBM Plex Mono", ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+  .total { display: flex; align-items: center; gap: 10px; margin-top: 2px; padding-top: 9px; border-top: 1px solid var(--line); color: var(--muted); }
+  .total .vol { color: var(--text); font-weight: 500; }
+  input[type=color] { width: 46px; height: 22px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: var(--panel-2); cursor: pointer; }
+  input[type=color]::-webkit-color-swatch-wrapper { padding: 2px; }
+  input[type=color]::-webkit-color-swatch { border: 0; border-radius: 2px; }
+  input[type=color]::-moz-color-swatch { border: 0; border-radius: 2px; }
   .readout { display: grid; grid-template-columns: 1fr auto; row-gap: 6px; column-gap: 12px; }
   .readout dt { color: var(--muted); margin: 0; }
   .readout dd { margin: 0; text-align: right; font: 500 13px/1.4 "IBM Plex Mono", ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
@@ -112,11 +118,19 @@
         <label class="part"><input type="checkbox" data-part="case" checked><span class="sw" style="background:var(--case)"></span>Case<span class="vol" id="vol-case"></span></label>
         <label class="part"><input type="checkbox" data-part="caps" checked><span class="sw" style="background:var(--cap)"></span>End caps<span class="vol" id="vol-caps"></span></label>
         <label class="part"><input type="checkbox" data-part="panel" checked><span class="sw" style="background:var(--module)"></span>Blank panel<span class="vol" id="vol-panel"></span></label>
+        <div class="total">Selected total<span class="vol" id="vol-total"></span></div>
       </div>
-      <div class="rows" style="margin-top:14px">
+    </section>
+
+    <section>
+      <h2>Display</h2>
+      <div class="rows">
+        <div class="row"><label for="col-case">Case colour</label><span class="val"><input id="col-case" type="color" aria-describedby="col-case-note"></span></div>
+        <div class="row"><label for="col-cap">End cap colour</label><span class="val"><input id="col-cap" type="color"></span></div>
         <div class="row"><label for="explode">Explode</label><span class="val" id="explode-v">0.00</span>
           <input id="explode" type="range" min="0" max="1" step="0.01" value="0"></div>
       </div>
+      <p class="note" id="col-case-note">The case colour also sets the accent used by the controls. Colours are for the view only and are not written into the exported files.</p>
     </section>
 
     <section>
@@ -134,8 +148,8 @@
         <div class="row"><label for="bottom-lips">Bottom lips</label><span class="val"><span id="bottom-size-v">1.0</span><small>mm</small></span>
           <select id="bottom-lips"><option value="round">Round</option><option value="sharp">Sharp</option><option value="chamfer">Chamfer</option></select>
           <input id="bottom-size" type="range" min="0.5" max="10" step="0.5" value="1"></div>
-        <div class="row"><label for="left-end">Left end</label><span class="val"></span>
-          <select id="left-end"><option value="cap">Removable cap (sym)</option><option value="wall">Integral wall (asym)</option></select></div>
+        <div class="row"><label for="left-end">Side panels</label><span class="val"></span>
+          <select id="left-end"><option value="cap">Symmetric (both detachable)</option><option value="wall">Asymmetric (right detachable)</option></select></div>
         <div class="row"><label for="clr">Tab clearance</label><span class="val"><span id="clr-v">0.00</span><small>mm</small></span>
           <input id="clr" type="range" min="0" max="0.6" step="0.05" value="0"></div>
         <div class="row"><label for="php">Blank panel</label><span class="val"><span id="php-v">6</span><small>HP</small></span>
@@ -175,7 +189,6 @@
         <dt>Rail bolt spacing</dt><dd id="r-rails"></dd>
         <dt>Wall screws per end</dt><dd id="r-screws"></dd>
       </dl>
-      <p class="note">Rails sit 3 mm from the inner walls, as in the Onshape source. The Eurorack standard is 122.5 mm between bolt centres.</p>
     </section>
   </aside>
 </div>

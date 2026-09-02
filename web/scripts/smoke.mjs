@@ -58,8 +58,14 @@ const waitBuilt = async (label, timeout = 120000) => {
 
 try {
   await waitBuilt("first build");
-  console.log("volumes:", await evaluate("['vol-case','vol-caps','vol-panel'].map(i => document.getElementById(i).textContent).join(' / ')"));
+  const vols = () => evaluate("['vol-case','vol-caps','vol-panel','vol-total'].map(i => document.getElementById(i).textContent).join(' / ')");
+  console.log("volumes:", await vols());
   console.log("screws:", await evaluate("document.getElementById('r-screws').textContent"));
+
+  // the total follows the part checkboxes without a rebuild
+  await evaluate("const b = document.querySelector('input[data-part=panel]'); b.checked = false; b.dispatchEvent(new Event('change')); true");
+  console.log("volumes without the panel:", await vols());
+  await evaluate("const b = document.querySelector('input[data-part=panel]'); b.checked = true; b.dispatchEvent(new Event('change')); true");
 
   await evaluate("const r = document.getElementById('rear'); r.value = 80; r.dispatchEvent(new Event('input')); r.dispatchEvent(new Event('change')); true");
   await sleep(300);
@@ -69,7 +75,11 @@ try {
   await evaluate("const l = document.getElementById('left-end'); l.value = 'wall'; l.dispatchEvent(new Event('change')); true");
   await sleep(300);
   await waitBuilt("rebuild asym");
-  console.log("volumes:", await evaluate("['vol-case','vol-caps'].map(i => document.getElementById(i).textContent).join(' / ')"));
+  console.log("volumes:", await vols());
+
+  // a picked colour overrides the stylesheet for both the panel and the 3D materials
+  await evaluate("const c = document.getElementById('col-case'); c.value = '#3aa675'; c.dispatchEvent(new Event('input')); true");
+  console.log("case colour:", await evaluate("getComputedStyle(document.documentElement).getPropertyValue('--case').trim() + ' accent ' + getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()"));
 
   // exports: intercept the download by stubbing the anchor click
   await evaluate("HTMLAnchorElement.prototype.click = function () { window.__dl = this.download; }; true");

@@ -40,6 +40,7 @@ const state = {
   explode: 0,
   show: { case: true, caps: true, panel: true },
   stats: null as Stats | null,
+  volumes: {} as Partial<Record<PartName, number>>,
   building: false,
   dirty: false,
 };
@@ -72,6 +73,22 @@ function showValues(): void {
   if (p.leftWall && $<HTMLSelectElement>("export-part").value === "capL") $<HTMLSelectElement>("export-part").value = "case";
 }
 
+/** Per-part volumes and the total over the parts currently shown. */
+function showVolumes(): void {
+  const v = state.volumes;
+  const cm3 = (mm3: number | undefined) => (mm3 === undefined ? "" : `${(mm3 / 1000).toFixed(1)} cm\u00b3`);
+  const caps = v.capL === undefined && v.capR === undefined ? undefined : (v.capL ?? 0) + (v.capR ?? 0);
+  $("vol-case").textContent = cm3(v.case);
+  $("vol-caps").textContent = cm3(caps);
+  $("vol-panel").textContent = cm3(v.panel);
+  const shown = [
+    state.show.case ? v.case : undefined,
+    state.show.caps ? caps : undefined,
+    state.show.panel ? v.panel : undefined,
+  ].filter((x): x is number => x !== undefined);
+  $("vol-total").textContent = shown.length ? cm3(shown.reduce((a, b) => a + b, 0)) : "";
+}
+
 function readout(): void {
   const s = state.stats;
   if (!s) return;
@@ -91,6 +108,7 @@ function layout(): void {
   scene.groups.capR.visible = state.show.caps;
   scene.groups.panel.visible = state.show.panel;
   scene.explode(state.explode);
+  showVolumes();
 }
 
 let firstBuild = true;
@@ -103,12 +121,10 @@ async function rebuild(): Promise<void> {
     const r = (await ask({ kind: "build", params: state.params, panelHp: state.panelHp })) as BuiltMessage;
     for (const name of ["case", "capL", "capR", "panel"] as PartName[]) scene.setPart(name, r.parts[name]);
     state.stats = r.stats;
-    const vol = (v?: number) => (v === undefined ? "" : `${(v / 1000).toFixed(1)} cm³`);
-    $("vol-case").textContent = vol(r.parts.case?.volume);
-    $("vol-caps").textContent = vol((r.parts.capL?.volume ?? 0) + (r.parts.capR?.volume ?? 0));
-    $("vol-panel").textContent = vol(r.parts.panel?.volume);
+    state.volumes = {};
+    for (const name of ["case", "capL", "capR", "panel"] as PartName[]) state.volumes[name] = r.parts[name]?.volume;
     const p = state.params;
-    status.innerHTML = `<b>${p.hpCount} HP</b> · ${p.frontHeight}/${p.rearHeight} mm · ${p.leftWall ? "asym" : "sym"} · built in ${(r.ms / 1000).toFixed(1)} s`;
+    status.innerHTML = `<b>${p.hpCount} HP</b> · ${p.frontHeight}/${p.rearHeight} mm · ${p.leftWall ? "asymmetric" : "symmetric"} · built in ${(r.ms / 1000).toFixed(1)} s`;
     status.className = "src";
     banner.classList.remove("show");
     readout();
@@ -162,6 +178,46 @@ $<HTMLSelectElement>("left-end").addEventListener("change", (e) => {
   showValues(); rebuild();
 });
 $<HTMLInputElement>("explode").addEventListener("input", (e) => { state.explode = parseFloat((e.target as HTMLInputElement).value); showValues(); layout(); });
+
+// ---- display colours -------------------------------------------------------------
+// A picked colour is written as an inline custom property on :root, so it overrides the
+// stylesheet's light and dark values and every rule reading that token follows — the
+// panel swatches and the accent from CSS, the three.js materials from applyTheme().
+const SWATCHES = { "col-case": ["--case", "--accent"], "col-cap": ["--cap"] } as const;
+type SwatchId = keyof typeof SWATCHES;
+const picked = new Set<SwatchId>();
+
+const token = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const rgba = (hex: string, a: number) => {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+};
+
+function applySwatch(id: SwatchId, hex: string | null): void {
+  const root = document.documentElement.style;
+  for (const name of SWATCHES[id]) {
+    if (hex) root.setProperty(name, hex); else root.removeProperty(name);
+  }
+  if (id === "col-case") {
+    if (hex) root.setProperty("--thumb-ring", rgba(hex, 0.24)); else root.removeProperty("--thumb-ring");
+  }
+  if (hex) picked.add(id); else picked.delete(id);
+  scene.applyTheme();
+}
+
+/** Show the stylesheet's own colour in any swatch the user has not set. */
+function syncSwatches(): void {
+  for (const id of Object.keys(SWATCHES) as SwatchId[]) {
+    if (picked.has(id)) continue;
+    const value = token(SWATCHES[id][0]);
+    if (/^#[0-9a-f]{6}$/i.test(value)) $<HTMLInputElement>(id).value = value;
+  }
+}
+
+for (const id of Object.keys(SWATCHES) as SwatchId[]) {
+  $<HTMLInputElement>(id).addEventListener("input", (e) => applySwatch(id, (e.target as HTMLInputElement).value));
+}
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => setTimeout(syncSwatches));
 document.querySelectorAll<HTMLInputElement>("input[data-part]").forEach((cb) =>
   cb.addEventListener("change", () => { state.show[cb.dataset.part as keyof typeof state.show] = cb.checked; layout(); }));
 document.querySelectorAll<HTMLButtonElement>(".views button").forEach((b) =>
@@ -176,6 +232,8 @@ $("reset").addEventListener("click", () => {
   $<HTMLSelectElement>("top-lips").value = p.topLips; $<HTMLSelectElement>("bottom-lips").value = p.bottomLips;
   $<HTMLInputElement>("top-size").value = String(lipSize("top")); $<HTMLInputElement>("bottom-size").value = String(lipSize("bottom"));
   $<HTMLSelectElement>("left-end").value = "cap"; $<HTMLInputElement>("php").value = "6"; $<HTMLInputElement>("clr").value = "0";
+  for (const id of Object.keys(SWATCHES) as SwatchId[]) applySwatch(id, null);
+  syncSwatches();
   showValues(); rebuild();
 });
 
@@ -198,5 +256,6 @@ for (const format of ["stl", "step"] as const) {
 }
 
 // ---- go -------------------------------------------------------------------------
+syncSwatches();
 showValues();
 rebuild();
