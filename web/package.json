@@ -1,0 +1,20 @@
+{
+  "name": "eurorack-case-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "The Eurorack case model in replicad (OpenCascade in the browser).",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "replicad": "1.0.1",
+    "replicad-opencascadejs": "1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

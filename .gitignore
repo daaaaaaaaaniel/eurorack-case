@@ -3,6 +3,9 @@ __pycache__/
 *.step
 *.stl
 *.whl
+!reference/onshape/*.step
 output/
 .pytest_cache/
 viewer/dist/
+web/node_modules/
+web/dist/
