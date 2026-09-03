@@ -20,13 +20,13 @@ npm run build      # -> dist/ (~23 MB, of which the wasm is 23 MB raw / 7 MB gzi
   `eurorack_case/params.py`, camel-cased, plus the derived values.
 - `src/model/parts.ts` — `caseShell()`, `endCap()`, `blankPanel()`: a
   line-for-line port of `eurorack_case/parts.py`, with replicad edge finders
-  where the Python matched edges by centre point.
+  where the Python matched edges by center point.
 - `src/filename.ts` — `partFileName()`: a part is named for itself and the
   parameters that shape it, so two files with one name hold one geometry.
 - `src/config.ts` — `buildConfig()` / `parseConfig()`: the saved settings, and
   a reader that treats an imported file as untrusted.
 - `src/oc.ts` — `initOC()`: starts the wasm kernel and hands it to replicad.
-- `src/worker.ts` — the modelling worker: builds the parts on request, returns
+- `src/worker.ts` — the modeling worker: builds the parts on request, returns
   meshes + edge lines + volumes, and writes STL/STEP on demand — one part in
   one format as itself, anything more zipped with its configuration.
 - `src/scene.ts`, `src/main.ts`, `index.html` — the viewer and its controls.

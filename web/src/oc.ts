@@ -1,5 +1,5 @@
 /**
- * Start OpenCascade and hand it to replicad. Call once, before any modelling.
+ * Start OpenCascade and hand it to replicad. Call once, before any modeling.
  *
  * In Node the wasm is read from the package directory; in the browser Vite
  * serves it (import the `.wasm?url` and pass it through `locateFile`).

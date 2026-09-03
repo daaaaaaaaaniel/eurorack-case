@@ -2,7 +2,7 @@
  * Parts of the Eurorack case in replicad — a port of eurorack_case/parts.py.
  *
  * Frame: X runs along the rails (0 .. width), Y runs front (-) to rear (+) and
- * is centred on the panel, Z is up with the top of the walls at Z = 0.
+ * is centered on the panel, Z is up with the top of the walls at Z = 0.
  *
  *   caseShell()   the shell: sloped floor, front/rear walls, T-slot rails,
  *                 screw holes for the end caps; open at both ends, or closed
@@ -73,7 +73,7 @@ function profile(points: Pt[], length: number, x0 = 0): Shape3D {
   return solid(pen.close().sketchOnPlane("YZ", x0).extrude(length));
 }
 
-/** A (Y, Z) rectangle centred at (cy, cz), extruded along X. */
+/** A (Y, Z) rectangle centered at (cy, cz), extruded along X. */
 function bar(cy: number, cz: number, w: number, h: number, length: number): Shape3D {
   return solid(drawRectangle(w, h).translate(cy, cz).sketchOnPlane("YZ").extrude(length));
 }

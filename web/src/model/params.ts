@@ -3,7 +3,7 @@
  *
  * Names follow the Onshape variable table (docs/variables.md). The first block
  * is the Onshape configuration; the rest are the design constants that were
- * `#variables` in the Part Studio. Millimetres throughout.
+ * `#variables` in the Part Studio. Millimeters throughout.
  */
 
 export const HP = 5.08;

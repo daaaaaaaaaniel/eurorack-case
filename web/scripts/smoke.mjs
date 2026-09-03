@@ -77,9 +77,9 @@ try {
   await waitBuilt("rebuild asym");
   console.log("volumes:", await vols());
 
-  // a picked colour overrides the stylesheet for both the panel and the 3D materials
+  // a picked color overrides the stylesheet for both the panel and the 3D materials
   await evaluate("const c = document.getElementById('col-case'); c.value = '#3aa675'; c.dispatchEvent(new Event('input')); true");
-  console.log("case colour:", await evaluate("getComputedStyle(document.documentElement).getPropertyValue('--case').trim() + ' accent ' + getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()"));
+  console.log("case color:", await evaluate("getComputedStyle(document.documentElement).getPropertyValue('--case').trim() + ' accent ' + getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()"));
 
   // exports: intercept the download by stubbing the anchor click, and keep the bytes
   await evaluate(`HTMLAnchorElement.prototype.click = function () {
@@ -140,11 +140,19 @@ try {
   if (!/Loaded/.test(cs)) throw new Error(`config import did not report success: "${cs}"`);
   console.log("controls now:", await evaluate("[['hp',26],['front',0],['rear',0],['php',0]].map(([i]) => i + '=' + document.getElementById(i).value).join(' ') + ' lips=' + document.getElementById('top-lips').value"));
 
+  // the Display tip pins open on click, and a click elsewhere closes it
+  await evaluate("document.getElementById('display-tip').click(); true");
+  const tipState = () => evaluate("(() => { const t = document.getElementById('display-tip-text'); return getComputedStyle(t).display + ': ' + t.textContent; })()");
+  console.log("display tip:", await tipState());
+  if (!/^block: Display settings only affect/.test(await tipState())) throw new Error(`display tip did not open: "${await tipState()}"`);
+
   await evaluate("const e = document.getElementById('explode'); e.value = 0.5; e.dispatchEvent(new Event('input')); true");
   await sleep(500);
   const png = (await send("Page.captureScreenshot", { format: "png" })).result.data;
   writeFileSync(shot, Buffer.from(png, "base64"));
   console.log("screenshot:", shot);
+  await evaluate("document.body.click(); true");
+  if (!/^none:/.test(await tipState())) throw new Error("display tip did not close");
 
   // and the rest of the panel, with the extra download options open
   await evaluate("document.querySelector('details.more').open = true; document.querySelector('aside').scrollTop = 1e6; true");

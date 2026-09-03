@@ -1,5 +1,5 @@
 /**
- * The modelling worker. OpenCascade runs here so the page stays responsive
+ * The modeling worker. OpenCascade runs here so the page stays responsive
  * while a rebuild takes a second or two.
  *
  * Messages in:  { id, kind: "build", params, panelHp }
@@ -33,7 +33,6 @@ export interface Stats {
   outerDepth: number;
   height: number;
   tiltDeg: number;
-  railSpacing: number;
   frontScrews: number;
   rearScrews: number;
 }
@@ -78,7 +77,6 @@ function stats(p: CaseParams): Stats {
     outerDepth: p.outerDepth,
     height: Math.max(p.frontHeight, p.rearHeight),
     tiltDeg: Math.atan2(p.frontHeight - p.rearHeight, p.outerDepth) * 180 / Math.PI,
-    railSpacing: p.panelHeight - 2 * p.railInset,
     frontScrews: wallHoleZs(p, fl, p.frontHeight, -yLeg).length,
     rearScrews: wallHoleZs(p, fl, p.rearHeight, yLeg).length,
   };

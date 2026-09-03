@@ -21,7 +21,7 @@ describe("part names", () => {
     expect(partFileName(wide, "case", 6, "stl")).not.toBe(partFileName(narrow, "case", 6, "stl"));
   });
 
-  test("drop trailing zeros from fractional millimetres", () => {
+  test("drop trailing zeros from fractional millimeters", () => {
     const p = caseParams({ frontHeight: 30.5, rearHeight: 30.5 });
     expect(partFileName(p, "case", 6, "stl")).toBe("case_26hp_30.5mm-front_30.5mm-rear.stl");
   });

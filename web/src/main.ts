@@ -19,7 +19,7 @@ worker.onmessage = (ev: MessageEvent<Response>) => {
 };
 type Ask = Request extends infer R ? (R extends Request ? Omit<R, "id"> : never) : never;
 worker.onerror = (ev: ErrorEvent) => {
-  const msg = `The modelling worker failed: ${ev.message || "unknown error"}`;
+  const msg = `The modeling worker failed: ${ev.message || "unknown error"}`;
   for (const p of pending.values()) p.reject(new Error(msg));
   pending.clear();
   const b = document.getElementById("banner")!;
@@ -99,7 +99,6 @@ function readout(): void {
   $("r-depth").innerHTML = mm(s.outerDepth);
   $("r-height").innerHTML = mm(s.height, 0);
   $("r-tilt").innerHTML = s.tiltDeg === 0 ? "level" : `${Math.abs(s.tiltDeg).toFixed(1)}° ${s.tiltDeg > 0 ? "toward rear" : "toward front"}`;
-  $("r-rails").innerHTML = mm(s.railSpacing);
   $("r-screws").innerHTML = `3 floor · ${s.frontScrews} front · ${s.rearScrews} rear`;
 }
 
@@ -120,22 +119,24 @@ const zipFormats = (): ("stl" | "step")[] =>
 
 /** Say what pressing Download will actually produce. */
 function downloadNote(): void {
-  const n = tickedParts().length;
+  const parts = tickedParts();
   const note = $("download-note");
   const button = $<HTMLButtonElement>("download");
-  button.disabled = n === 0;
-  if (n === 0) {
+  button.disabled = parts.length === 0;
+  if (parts.length === 0) {
     note.textContent = "Nothing is ticked under Parts.";
     return;
   }
   const formats = zipFormats();
-  const kinds = formats.map((f) => f.toUpperCase() + "s");
-  const named = kinds.length === 2 ? `${kinds[0]} and ${kinds[1]}` : kinds[0];
-  const parts = `${n} ticked ${n === 1 ? "part" : "parts"}`;
+  const kinds = formats.map((f) => f.toUpperCase());
+  const names: string[] = [];
+  if (state.show.case) names.push("case mid section");
+  if (state.show.caps) names.push(state.params.leftWall ? "right end cap" : "two end caps");
+  if (state.show.panel) names.push("blank panel");
   // one part in one format comes down bare, so it carries no configuration
-  note.textContent = n * formats.length === 1
-    ? `${kinds[0].slice(0, -1)} of the one ticked part, on its own.`
-    : `${named} of the ${parts}, plus a config file.`;
+  note.textContent = parts.length * formats.length === 1
+    ? `${kinds[0]} of ${names[0]}, on its own.`
+    : `ZIP contains ${kinds.map((k) => k + "s").join(" and ")} of ${names.join(", ")}, and config file.`;
 }
 
 function layout(): void {
@@ -161,7 +162,7 @@ async function rebuild(): Promise<void> {
     state.volumes = {};
     for (const name of ["case", "capL", "capR", "panel"] as PartName[]) state.volumes[name] = r.parts[name]?.volume;
     const p = state.params;
-    status.innerHTML = `<b>${p.hpCount} HP</b> · ${p.frontHeight}/${p.rearHeight} mm · ${p.leftWall ? "asymmetric" : "symmetric"} · built in ${(r.ms / 1000).toFixed(1)} s`;
+    status.innerHTML = `<b>${p.hpCount} HP</b> · ${p.frontHeight}/${p.rearHeight} mm · ${p.leftWall ? "asymmetric" : "symmetric"}<span class="built"> built in ${(r.ms / 1000).toFixed(1)} s</span>`;
     status.className = "src";
     banner.classList.remove("show");
     readout();
@@ -216,8 +217,19 @@ $<HTMLSelectElement>("left-end").addEventListener("change", (e) => {
 });
 $<HTMLInputElement>("explode").addEventListener("input", (e) => { state.explode = parseFloat((e.target as HTMLInputElement).value); showValues(); layout(); });
 
-// ---- display colours -------------------------------------------------------------
-// A picked colour is written as an inline custom property on :root, so it overrides the
+// The Display tip shows on hover or focus through CSS; a click pins it open until the
+// next click elsewhere or Escape, for touch screens and anyone who wants to read slowly.
+{
+  const button = $<HTMLButtonElement>("display-tip");
+  const tip = button.parentElement!;
+  const set = (open: boolean) => { tip.classList.toggle("open", open); button.setAttribute("aria-expanded", String(open)); };
+  button.addEventListener("click", () => set(!tip.classList.contains("open")));
+  document.addEventListener("click", (e) => { if (!tip.contains(e.target as Node)) set(false); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") set(false); });
+}
+
+// ---- display colors --------------------------------------------------------------
+// A picked color is written as an inline custom property on :root, so it overrides the
 // stylesheet's light and dark values and every rule reading that token follows — the
 // panel swatches and the accent from CSS, the three.js materials from applyTheme().
 const SWATCHES = { "col-case": ["--case", "--accent"], "col-cap": ["--cap"] } as const;
@@ -242,7 +254,7 @@ function applySwatch(id: SwatchId, hex: string | null): void {
   scene.applyTheme();
 }
 
-/** Show the stylesheet's own colour in any swatch the user has not set. */
+/** Show the stylesheet's own color in any swatch the user has not set. */
 function syncSwatches(): void {
   for (const id of Object.keys(SWATCHES) as SwatchId[]) {
     if (picked.has(id)) continue;
