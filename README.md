@@ -4,6 +4,11 @@ A parametric Eurorack case with a sloped floor in [CadQuery](https://cadquery.re
 ported from two Onshape Part Studios (`Eurorack v1 sym` / `asym`) and verified
 against their STEP exports.
 
+There is also a browser version at
+<https://daaaaaaaaaniel.github.io/eurorack-case/> that builds the same case
+without installing anything. [UserManual.md](UserManual.md) explains every
+control on that page.
+
 ```
 pip install cadquery
 python3 build.py                                  # 26 HP, 30/30 mm walls, round lips
