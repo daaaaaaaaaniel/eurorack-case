@@ -37,14 +37,15 @@ npm run build      # -> dist/ (~23 MB, of which the wasm is 23 MB raw / 7 MB gzi
   the naming rule. Both run without the kernel, in milliseconds.
 - `scripts/smoke.mjs` — drives the built app in headless Chromium over the
   DevTools protocol: first build, a rebuild, the asym variant, a zip download
-  read back out of its central directory, a single part, and a config import.
+  read back out of its central directory, a one-part zip, a config-only
+  download, a single part, and a config import.
 
 ## Downloads
 
-**Download** writes the parts ticked under Parts, in STL, STEP or both. One part
-in one format comes down as itself; anything more is `case.zip`, which also
-carries a `config.json` of the settings that produced it. **More options** holds
-a single part on its own. Members are named for the part and what shapes it —
+**Download** writes `case.zip`: the parts ticked under Parts, in STL, STEP or
+both, plus a `config.json` of the settings that produced them. With nothing
+ticked, the `config.json` comes down on its own. **More options** holds a
+single part on its own, as a bare file. Members are named for the part and what shapes it —
 `case_26hp_30mm-front_45mm-rear.stl`, `capL_30mm-front_45mm-rear.stl`,
 `panel_6hp.stl` — so the caps carry no HP, being a cross-section that does not
 change with the case's width.

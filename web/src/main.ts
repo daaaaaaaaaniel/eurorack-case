@@ -1,7 +1,8 @@
 /** Page wiring: controls → worker → scene, and file downloads. */
 import { Scene } from "./scene";
 import type { BuiltMessage, PartName, Request, Response, Stats } from "./worker";
-import { parseConfig } from "./config";
+import { buildConfig, configText, parseConfig } from "./config";
+import { CONFIG_MEMBER } from "./filename";
 import { DEFAULTS, type CaseParamsInput, type LipStyle } from "./model/params";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -125,24 +126,17 @@ const zipFormats = (): ("stl" | "step")[] =>
 
 /** Say what pressing Download will actually produce. */
 function downloadNote(): void {
-  const parts = tickedParts();
   const note = $("download-note");
-  const button = $<HTMLButtonElement>("download");
-  button.disabled = parts.length === 0;
-  if (parts.length === 0) {
-    note.textContent = "Nothing is ticked under Parts.";
+  if (tickedParts().length === 0) {
+    note.textContent = "No parts ticked. Config file only.";
     return;
   }
-  const formats = zipFormats();
-  const kinds = formats.map((f) => f.toUpperCase());
+  const kinds = zipFormats().map((f) => f.toUpperCase() + "s");
   const names: string[] = [];
   if (state.show.case) names.push("case mid section");
   if (state.show.caps) names.push(state.params.leftWall ? "right end cap" : "two end caps");
   if (state.show.panel) names.push("blank panel");
-  // one part in one format comes down bare, so it carries no configuration
-  note.textContent = parts.length * formats.length === 1
-    ? `${kinds[0]} of ${names[0]}, on its own.`
-    : `ZIP contains ${kinds.map((k) => k + "s").join(" and ")} of ${names.join(", ")}, and config file.`;
+  note.textContent = `ZIP contains ${kinds.join(" and ")} of ${names.join(", ")}, and config file.`;
 }
 
 function layout(): void {
@@ -305,27 +299,40 @@ $("reset").addEventListener("click", () => {
 // ---- export ----------------------------------------------------------------------
 const exportStatus = $("export-status");
 
-async function download(parts: PartName[], formats: ("stl" | "step")[]): Promise<void> {
+function serve(name: string, bytes: ArrayBuffer | string, type: string): void {
+  const blob = new Blob([bytes], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  const size = blob.size >= 1048576 ? `${(blob.size / 1048576).toFixed(2)} MiB` : `${(blob.size / 1024).toFixed(1)} KiB`;
+  exportStatus.textContent = `${name} (${size})`;
+  exportStatus.className = "status ok";
+}
+
+/** Parts from the worker: a zip with config.json when `bundle` is set, else the one file bare. */
+async function download(parts: PartName[], formats: ("stl" | "step")[], bundle: boolean): Promise<void> {
   exportStatus.textContent = "Writing…";
   exportStatus.className = "status";
   try {
-    const r = (await ask({ kind: "export", parts, formats })) as Extract<Response, { kind: "file" }>;
-    const url = URL.createObjectURL(new Blob([r.buffer], { type: "application/octet-stream" }));
-    const a = document.createElement("a"); a.href = url; a.download = r.name; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 10_000);
-    exportStatus.textContent = `${r.name} (${(r.buffer.byteLength / 1048576).toFixed(2)} MiB)`;
-    exportStatus.className = "status ok";
+    const r = (await ask({ kind: "export", parts, formats, bundle })) as Extract<Response, { kind: "file" }>;
+    serve(r.name, r.buffer, "application/octet-stream");
   } catch (err) {
     exportStatus.textContent = `Could not export: ${err instanceof Error ? err.message : String(err)}`;
     exportStatus.className = "status";
   }
 }
 
-$("download").addEventListener("click", () => download(tickedParts(), zipFormats()));
+$("download").addEventListener("click", () => {
+  const parts = tickedParts();
+  // with nothing ticked there is no geometry to write, so the config comes down on its own
+  if (parts.length === 0) serve(CONFIG_MEMBER, configText(buildConfig(state.params, state.panelHp)), "application/json");
+  else download(parts, zipFormats(), true);
+});
 $("zip-format").addEventListener("change", downloadNote);
 $("download-part").addEventListener("click", () => download(
   [$<HTMLSelectElement>("export-part").value as PartName],
   [$<HTMLSelectElement>("part-format").value as "stl" | "step"],
+  false,
 ));
 
 // ---- config ----------------------------------------------------------------------

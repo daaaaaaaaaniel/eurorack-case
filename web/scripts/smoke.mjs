@@ -93,7 +93,7 @@ try {
   const saved = async (label) => {
     const t0 = Date.now();
     let s = "";
-    while (Date.now() - t0 < 60000) { s = await evaluate("document.getElementById('export-status').textContent"); if (/MiB|Could not/.test(s)) break; await sleep(250); }
+    while (Date.now() - t0 < 60000) { s = await evaluate("document.getElementById('export-status').textContent"); if (/[MK]iB|Could not/.test(s)) break; await sleep(250); }
     console.log(`${label}: ${s}  file=${await evaluate("window.__dl")}`);
     if (/Could not/.test(s)) throw new Error(`${label} failed: ${s}`);
     return s;
@@ -117,7 +117,24 @@ try {
   })`);
   console.log("zip holds:", members);
 
-  // one part in one format comes down bare
+  // the main Download zips even one part in one format
+  await evaluate("(() => { const f = document.getElementById('zip-format'); f.value = 'stl'; f.dispatchEvent(new Event('change')); })(); true");
+  await evaluate("document.querySelectorAll('input[data-part]').forEach(b => { if (b.dataset.part !== 'case') { b.checked = false; b.dispatchEvent(new Event('change')); } }); true");
+  console.log("download note:", await evaluate("document.getElementById('download-note').textContent"));
+  await evaluate("document.getElementById('download').click(); true");
+  if (!/^case\.zip/.test(await saved("one part, main download"))) throw new Error("one part did not come down as case.zip");
+
+  // with nothing ticked, the config alone comes down as raw JSON
+  await evaluate("(() => { const b = document.querySelector('input[data-part=case]'); b.checked = false; b.dispatchEvent(new Event('change')); })(); true");
+  console.log("download note:", await evaluate("document.getElementById('download-note').textContent"));
+  await evaluate("document.getElementById('download').click(); true");
+  await saved("nothing ticked");
+  const cfg = await evaluate("window.__blob.then(b => JSON.parse(new TextDecoder().decode(b))).then(c => c.format + ' ' + c.parameters.hpCount + 'hp')");
+  console.log("config alone:", await evaluate("window.__dl"), cfg);
+  if (!/^eurorack-case 26hp$/.test(cfg)) throw new Error(`config-only download is wrong: ${cfg}`);
+  await evaluate("document.querySelectorAll('input[data-part]').forEach(b => { b.checked = true; b.dispatchEvent(new Event('change')); }); true");
+
+  // one part in one format comes down bare from More options
   await evaluate("const p = document.getElementById('export-part'); p.value = 'capR'; true");
   await evaluate("document.getElementById('download-part').click(); true");
   await saved("single part");

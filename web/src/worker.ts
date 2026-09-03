@@ -38,7 +38,8 @@ export interface Stats {
 }
 
 export type BuildRequest = { id: number; kind: "build"; params: CaseParamsInput; panelHp: number };
-export type ExportRequest = { id: number; kind: "export"; parts: PartName[]; formats: ("stl" | "step")[] };
+/** `bundle` asks for a zip with config.json even when there is only one file. */
+export type ExportRequest = { id: number; kind: "export"; parts: PartName[]; formats: ("stl" | "step")[]; bundle: boolean };
 export type Request = BuildRequest | ExportRequest;
 
 export type BuiltMessage = { id: number; kind: "built"; parts: Partial<Record<PartName, MeshPayload>>; stats: Stats; ms: number };
@@ -141,7 +142,7 @@ async function exportParts(req: ExportRequest): Promise<void> {
 
   let name: string;
   let bytes: Uint8Array;
-  if (files.length === 1) {
+  if (files.length === 1 && !req.bundle) {
     [name, bytes] = files[0];
   } else {
     const members: Record<string, Uint8Array> = Object.fromEntries(files);
