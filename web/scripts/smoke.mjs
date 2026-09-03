@@ -164,6 +164,11 @@ try {
   // the LOADING overlay is gone once the first model is up
   if (await evaluate("!document.getElementById('loading').hidden")) throw new Error("LOADING overlay still showing after the first build");
 
+  // the title and the hint are ordinary text over the canvas: a click lands on them, not the canvas
+  const hit = await evaluate("[[30, 24], [innerWidth - 336 - 30, innerHeight - 20]].map(([x, y]) => document.elementFromPoint(x, y).tagName + '.' + (document.elementFromPoint(x, y).className || document.elementFromPoint(x, y).parentElement.className)).join(' ')");
+  console.log("overlay hit test:", hit);
+  if (/CANVAS/.test(hit)) throw new Error("an overlay is not receiving clicks: " + hit);
+
   // the Display tip pins open on click, and a click elsewhere closes it
   await evaluate("document.getElementById('display-tip').click(); true");
   const tipState = () => evaluate("(() => { const t = document.getElementById('display-tip-text'); return getComputedStyle(t).display + ': ' + t.textContent; })()");

@@ -329,6 +329,9 @@ $("download").addEventListener("click", () => {
   else download(parts, zipFormats(), true);
 });
 $("zip-format").addEventListener("change", downloadNote);
+$("part-format").addEventListener("change", (e) => {
+  $("part-note").textContent = `${(e.target as HTMLSelectElement).value.toUpperCase()} file for an individual part. No config.`;
+});
 $("download-part").addEventListener("click", () => download(
   [$<HTMLSelectElement>("export-part").value as PartName],
   [$<HTMLSelectElement>("part-format").value as "stl" | "step"],
