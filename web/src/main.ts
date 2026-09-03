@@ -93,13 +93,19 @@ function showVolumes(): void {
 function readout(): void {
   const s = state.stats;
   if (!s) return;
-  const mm = (v: number, d = 1) => `${v.toFixed(d)} <small>mm</small>`;
-  $("r-len").innerHTML = mm(s.width, 2);
-  $("r-lencaps").innerHTML = mm(s.width + 2 * state.params.endCapThickness, 2);
-  $("r-depth").innerHTML = mm(s.outerDepth);
-  $("r-height").innerHTML = mm(s.height, 0);
-  $("r-tilt").innerHTML = s.tiltDeg === 0 ? "level" : `${Math.abs(s.tiltDeg).toFixed(1)}° ${s.tiltDeg > 0 ? "toward rear" : "toward front"}`;
-  $("r-screws").innerHTML = `3 floor · ${s.frontScrews} front · ${s.rearScrews} rear`;
+  const p = state.params;
+  const t = p.endCapThickness;
+  // an integral left wall takes the same 4 mm a cap would, so the assembled length is the
+  // same either way; the case on its own is that much longer in the asymmetric variant
+  $("w-with").innerHTML = `<b>${(s.width + 2 * t).toFixed(2)} mm</b> with end caps`;
+  $("w-without").innerHTML = `<b>${(s.width + (p.leftWall ? t : 0)).toFixed(2)} mm</b> without end caps`;
+  $("tilt").innerHTML = s.tiltDeg === 0
+    ? "Panel is level"
+    : `Panel tilts <b>${Math.abs(s.tiltDeg).toFixed(1)}°</b> toward ${s.tiltDeg > 0 ? "rear" : "front"}`;
+  // one screw set per detachable end: both ends symmetric, the right end only asymmetric
+  const ends = p.leftWall ? 1 : 2;
+  const floor = 3 * ends, front = s.frontScrews * ends, rear = s.rearScrews * ends;
+  $("r-screws").innerHTML = `${floor} floor · ${front} front · ${rear} rear (${floor + front + rear} total)`;
 }
 
 /** The ticked parts, in the order they are listed. */
