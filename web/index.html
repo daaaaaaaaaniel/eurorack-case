@@ -102,6 +102,9 @@
   .credits dd { margin: 0 0 8px; }
   .credits dd:last-child { margin-bottom: 0; }
   .credits a { color: var(--accent); }
+  .links hr { border: 0; border-top: 1px solid var(--line); margin: 0 0 12px; }
+  .links p { margin: 0 0 6px; color: var(--muted); }
+  .links a { color: var(--accent); }
   .note { color: var(--muted); font-size: 12px; margin: 10px 0 0; line-height: 1.5; }
   .actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
   .status { color: var(--muted); font: 12px/1.3 "IBM Plex Mono", ui-monospace, Menlo, monospace; }
@@ -245,6 +248,12 @@
         <span class="status" id="config-status" role="status" aria-live="polite"></span>
       </div>
       <p class="note">Loads the <code>config.json</code> from a download, putting every control back where it was.</p>
+    </section>
+
+    <section class="links">
+      <hr>
+      <p>Confused? Read the <a href="https://github.com/daaaaaaaaaniel/eurorack-case/blob/claude/replicad-port/UserManual.md" target="_blank" rel="noopener">manual</a>.</p>
+      <p>View the <a href="https://github.com/daaaaaaaaaniel/eurorack-case/" target="_blank" rel="noopener">source code</a>.</p>
     </section>
 
     <section>
