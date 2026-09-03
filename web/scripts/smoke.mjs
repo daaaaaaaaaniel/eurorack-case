@@ -81,21 +81,77 @@ try {
   await evaluate("const c = document.getElementById('col-case'); c.value = '#3aa675'; c.dispatchEvent(new Event('input')); true");
   console.log("case colour:", await evaluate("getComputedStyle(document.documentElement).getPropertyValue('--case').trim() + ' accent ' + getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()"));
 
-  // exports: intercept the download by stubbing the anchor click
-  await evaluate("HTMLAnchorElement.prototype.click = function () { window.__dl = this.download; }; true");
-  for (const fmt of ["stl", "step"]) {
-    await evaluate(`document.getElementById('export-${fmt}').click(); true`);
+  // exports: intercept the download by stubbing the anchor click, and keep the bytes
+  await evaluate(`HTMLAnchorElement.prototype.click = function () {
+    window.__dl = this.download;
+    window.__blob = fetch(this.href).then(r => r.arrayBuffer());
+  }; true`);
+  const saved = async (label) => {
     const t0 = Date.now();
     let s = "";
     while (Date.now() - t0 < 60000) { s = await evaluate("document.getElementById('export-status').textContent"); if (/MiB|Could not/.test(s)) break; await sleep(250); }
-    console.log(`export ${fmt}: ${s}  file=${await evaluate("window.__dl")}`);
+    console.log(`${label}: ${s}  file=${await evaluate("window.__dl")}`);
+    if (/Could not/.test(s)) throw new Error(`${label} failed: ${s}`);
+    return s;
+  };
+
+  console.log("download note:", await evaluate("document.getElementById('download-note').textContent"));
+  await evaluate("const f = document.getElementById('zip-format'); f.value = 'stl,step'; f.dispatchEvent(new Event('change')); true");
+  console.log("download note:", await evaluate("document.getElementById('download-note').textContent"));
+  await evaluate("document.getElementById('download').click(); true");
+  await saved("zip, both formats");
+  // read the member names straight out of the archive's central directory
+  const members = await evaluate(`window.__blob.then(b => {
+    const v = new DataView(b), out = [];
+    for (let i = 0; i < v.byteLength - 3; i++) {
+      if (v.getUint32(i, true) === 0x02014b50) {
+        const n = v.getUint16(i + 28, true);
+        out.push(new TextDecoder().decode(new Uint8Array(b, i + 46, n)));
+      }
+    }
+    return out.join(' ');
+  })`);
+  console.log("zip holds:", members);
+
+  // one part in one format comes down bare
+  await evaluate("const p = document.getElementById('export-part'); p.value = 'capR'; true");
+  await evaluate("document.getElementById('download-part').click(); true");
+  await saved("single part");
+
+  // a configuration round trip: write one by hand, load it, watch the page follow
+  await evaluate(`(() => {
+    const cfg = { format: "eurorack-case", version: 1, parameters: { hpCount: 42, frontHeight: 25, rearHeight: 60, topLips: "chamfer", upperChamfer: 2, leftWall: false, blankPanelHp: 8 } };
+    const file = new File([JSON.stringify(cfg)], "config.json", { type: "application/json" });
+    const dt = new DataTransfer(); dt.items.add(file);
+    const input = document.getElementById("config-file");
+    input.files = dt.files;
+    input.dispatchEvent(new Event("change"));
+    return true;
+  })()`);
+  // wait for the imported case itself, not whatever was on screen before
+  const t1 = Date.now();
+  while (Date.now() - t1 < 60000) {
+    if (/42 HP.*built in/.test(await status())) break;
+    await sleep(250);
   }
+  console.log("after importing a config:", await status());
+  const cs = await evaluate("document.getElementById('config-status').textContent");
+  console.log("config status:", cs);
+  if (!/Loaded/.test(cs)) throw new Error(`config import did not report success: "${cs}"`);
+  console.log("controls now:", await evaluate("[['hp',26],['front',0],['rear',0],['php',0]].map(([i]) => i + '=' + document.getElementById(i).value).join(' ') + ' lips=' + document.getElementById('top-lips').value"));
 
   await evaluate("const e = document.getElementById('explode'); e.value = 0.5; e.dispatchEvent(new Event('input')); true");
   await sleep(500);
   const png = (await send("Page.captureScreenshot", { format: "png" })).result.data;
   writeFileSync(shot, Buffer.from(png, "base64"));
   console.log("screenshot:", shot);
+
+  // and the rest of the panel, with the extra download options open
+  await evaluate("document.querySelector('details.more').open = true; document.querySelector('aside').scrollTop = 1e6; true");
+  await sleep(300);
+  const panelShot = shot.replace(/\.png$/, "-panel.png");
+  writeFileSync(panelShot, Buffer.from((await send("Page.captureScreenshot", { format: "png" })).result.data, "base64"));
+  console.log("screenshot:", panelShot);
   if (logs.length) console.log("console:", logs.join("\n"));
 } finally {
   ws.close();

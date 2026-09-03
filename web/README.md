@@ -21,14 +21,38 @@ npm run build      # -> dist/ (~23 MB, of which the wasm is 23 MB raw / 7 MB gzi
 - `src/model/parts.ts` — `caseShell()`, `endCap()`, `blankPanel()`: a
   line-for-line port of `eurorack_case/parts.py`, with replicad edge finders
   where the Python matched edges by centre point.
+- `src/filename.ts` — `partFileName()`: a part is named for itself and the
+  parameters that shape it, so two files with one name hold one geometry.
+- `src/config.ts` — `buildConfig()` / `parseConfig()`: the saved settings, and
+  a reader that treats an imported file as untrusted.
 - `src/oc.ts` — `initOC()`: starts the wasm kernel and hands it to replicad.
 - `src/worker.ts` — the modelling worker: builds the parts on request, returns
-  meshes + edge lines + volumes, and writes STL/STEP blobs on demand.
+  meshes + edge lines + volumes, and writes STL/STEP on demand — one part in
+  one format as itself, anything more zipped with its configuration.
 - `src/scene.ts`, `src/main.ts`, `index.html` — the viewer and its controls.
 - `test/matches-onshape.test.ts` — volume (1e-5), face count and bounding
   extents against Onshape's exports for both variants, plus a parameter sweep.
+- `test/config.test.ts`, `test/filename.test.ts` — the configuration round trip
+  (including files that are hand-edited, from a later version, or not ours) and
+  the naming rule. Both run without the kernel, in milliseconds.
 - `scripts/smoke.mjs` — drives the built app in headless Chromium over the
-  DevTools protocol: first build, a rebuild, the asym variant, both exports.
+  DevTools protocol: first build, a rebuild, the asym variant, a zip download
+  read back out of its central directory, a single part, and a config import.
+
+## Downloads
+
+**Download** writes the parts ticked under Parts, in STL, STEP or both. One part
+in one format comes down as itself; anything more is `case.zip`, which also
+carries a `config.json` of the settings that produced it. **More options** holds
+a single part on its own. Members are named for the part and what shapes it —
+`case_26hp_30mm-front_45mm-rear.stl`, `capL_30mm-front_45mm-rear.stl`,
+`panel_6hp.stl` — so the caps carry no HP, being a cross-section that does not
+change with the case's width.
+
+**Import config** reads a `config.json` back and puts every control where it was,
+so a case can be reprinted, or adjusted and reprinted, months later. Only the
+settings the page exposes are saved; everything else follows the current model.
+An imported file is checked field by field, and anything corrected is reported.
 
 ## Limits the kernel imposes
 

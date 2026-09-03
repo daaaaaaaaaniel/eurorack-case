@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "fflate": "^0.8.3",
     "replicad": "1.0.1",
     "replicad-opencascadejs": "1.0.0",
     "three": "^0.170.0"

@@ -3,14 +3,17 @@
  * while a rebuild takes a second or two.
  *
  * Messages in:  { id, kind: "build", params, panelHp }
- *               { id, kind: "export", part, format: "stl" | "step" }
+ *               { id, kind: "export", parts, formats }
  * Messages out: { id, kind: "built", parts, stats, ms }
  *               { id, kind: "file", name, buffer }
  *               { id, kind: "error", message }
  */
 import wasmUrl from "replicad-opencascadejs/wasm?url";
+import { zipSync, strToU8 } from "fflate";
 import { measureVolume, type Shape3D } from "replicad";
 
+import { buildConfig, configText } from "./config";
+import { BUNDLE_NAME, CONFIG_MEMBER, partFileName } from "./filename";
 import { initOC } from "./oc";
 import { caseParams, HP, type CaseParams, type CaseParamsInput } from "./model/params";
 import { blankPanel, caseShell, endCap, Floor, wallHoleZs } from "./model/parts";
@@ -36,7 +39,7 @@ export interface Stats {
 }
 
 export type BuildRequest = { id: number; kind: "build"; params: CaseParamsInput; panelHp: number };
-export type ExportRequest = { id: number; kind: "export"; part: PartName; format: "stl" | "step" };
+export type ExportRequest = { id: number; kind: "export"; parts: PartName[]; formats: ("stl" | "step")[] };
 export type Request = BuildRequest | ExportRequest;
 
 export type BuiltMessage = { id: number; kind: "built"; parts: Partial<Record<PartName, MeshPayload>>; stats: Stats; ms: number };
@@ -46,6 +49,7 @@ export type Response = BuiltMessage | FileMessage | ErrorMessage;
 
 const shapes: Partial<Record<PartName, Shape3D>> = {};
 let lastParams: CaseParams | null = null;
+let lastPanelHp = 0;
 
 // the DOM lib types postMessage for Window; this is a dedicated worker
 const post = (self as unknown as { postMessage: (message: Response, transfer?: Transferable[]) => void }).postMessage.bind(self);
@@ -101,8 +105,10 @@ async function build(req: BuildRequest): Promise<void> {
   next.case = attempt("case", () => caseShell(p));
   if (!p.closedEnds.includes("left")) next.capL = attempt("left end cap", () => endCap(p, "left"));
   next.capR = attempt("right end cap", () => endCap(p, "right"));
-  next.panel = attempt("blank panel", () => blankPanel(p, Math.min(req.panelHp, p.hpCount)));
+  const panelHp = Math.min(req.panelHp, p.hpCount);
+  next.panel = attempt("blank panel", () => blankPanel(p, panelHp));
   lastParams = p;
+  lastPanelHp = panelHp;
   for (const k of Object.keys(shapes) as PartName[]) delete shapes[k];
   Object.assign(shapes, next);
 
@@ -117,15 +123,37 @@ async function build(req: BuildRequest): Promise<void> {
   post(msg, transfer);
 }
 
-async function exportPart(req: ExportRequest): Promise<void> {
-  const shape = shapes[req.part];
-  if (!shape || !lastParams) throw new Error("nothing built yet");
+/**
+ * One part in one format comes down as itself; anything more is zipped, and
+ * every zip carries the configuration that produced it.
+ */
+async function exportParts(req: ExportRequest): Promise<void> {
+  if (!lastParams) throw new Error("nothing built yet");
   const p = lastParams;
-  const label = { case: "case", capL: "end-cap-left", capR: "end-cap-right", panel: "blank-panel" }[req.part];
-  const cfg = `${p.hpCount}hp-${p.frontHeight}-${p.rearHeight}${p.leftWall ? "-asym" : ""}`;
-  const blob = req.format === "stl" ? shape.blobSTL({ ...MESH, binary: true }) : shape.blobSTEP();
-  const buffer = await blob.arrayBuffer();
-  const msg: FileMessage = { id: req.id, kind: "file", name: `${label}-${cfg}.${req.format}`, buffer };
+  const files: [string, Uint8Array][] = [];
+  for (const part of req.parts) {
+    const shape = shapes[part];
+    if (!shape) continue;
+    for (const format of req.formats) {
+      const blob = format === "stl" ? shape.blobSTL({ ...MESH, binary: true }) : shape.blobSTEP();
+      files.push([partFileName(p, part, lastPanelHp, format), new Uint8Array(await blob.arrayBuffer())]);
+    }
+  }
+  if (files.length === 0) throw new Error("no parts are selected");
+
+  let name: string;
+  let bytes: Uint8Array;
+  if (files.length === 1) {
+    [name, bytes] = files[0];
+  } else {
+    const members: Record<string, Uint8Array> = Object.fromEntries(files);
+    members[CONFIG_MEMBER] = strToU8(configText(buildConfig(p, lastPanelHp)));
+    name = BUNDLE_NAME;
+    bytes = zipSync(members, { level: 6 });
+  }
+  // a fresh buffer: fflate may hand back a view into a larger one
+  const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+  const msg: FileMessage = { id: req.id, kind: "file", name, buffer };
   post(msg, [buffer]);
 }
 
@@ -136,7 +164,7 @@ onmessage = async (ev: MessageEvent<Request>) => {
   try {
     await ready;
     if (req.kind === "build") await build(req);
-    else await exportPart(req);
+    else await exportParts(req);
   } catch (err) {
     const msg: ErrorMessage = { id: req.id, kind: "error", message: err instanceof Error ? err.message : String(err) };
     post(msg);

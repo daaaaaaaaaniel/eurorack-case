@@ -1,6 +1,7 @@
 /** Page wiring: controls → worker → scene, and file downloads. */
 import { Scene } from "./scene";
 import type { BuiltMessage, PartName, Request, Response, Stats } from "./worker";
+import { parseConfig } from "./config";
 import { DEFAULTS, type CaseParamsInput, type LipStyle } from "./model/params";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -102,6 +103,41 @@ function readout(): void {
   $("r-screws").innerHTML = `3 floor · ${s.frontScrews} front · ${s.rearScrews} rear`;
 }
 
+/** The ticked parts, in the order they are listed. */
+function tickedParts(): PartName[] {
+  const parts: PartName[] = [];
+  if (state.show.case) parts.push("case");
+  if (state.show.caps) {
+    if (!state.params.leftWall) parts.push("capL");
+    parts.push("capR");
+  }
+  if (state.show.panel) parts.push("panel");
+  return parts;
+}
+
+const zipFormats = (): ("stl" | "step")[] =>
+  $<HTMLSelectElement>("zip-format").value.split(",") as ("stl" | "step")[];
+
+/** Say what pressing Download will actually produce. */
+function downloadNote(): void {
+  const n = tickedParts().length;
+  const note = $("download-note");
+  const button = $<HTMLButtonElement>("download");
+  button.disabled = n === 0;
+  if (n === 0) {
+    note.textContent = "Nothing is ticked under Parts.";
+    return;
+  }
+  const formats = zipFormats();
+  const kinds = formats.map((f) => f.toUpperCase() + "s");
+  const named = kinds.length === 2 ? `${kinds[0]} and ${kinds[1]}` : kinds[0];
+  const parts = `${n} ticked ${n === 1 ? "part" : "parts"}`;
+  // one part in one format comes down bare, so it carries no configuration
+  note.textContent = n * formats.length === 1
+    ? `${kinds[0].slice(0, -1)} of the one ticked part, on its own.`
+    : `${named} of the ${parts}, plus a config file.`;
+}
+
 function layout(): void {
   scene.groups.case.visible = state.show.case;
   scene.groups.capL.visible = state.show.caps && !state.params.leftWall;
@@ -109,6 +145,7 @@ function layout(): void {
   scene.groups.panel.visible = state.show.panel;
   scene.explode(state.explode);
   showVolumes();
+  downloadNote();
 }
 
 let firstBuild = true;
@@ -225,13 +262,24 @@ document.querySelectorAll<HTMLButtonElement>(".views button").forEach((b) =>
     const s = state.stats; if (!s) return;
     scene.frame(s.width, s.outerDepth, s.height, b.dataset.view as "iso" | "front" | "top" | "end");
   }));
+/** Put every control where the state says it should be. */
+function syncControls(): void {
+  const p = state.params;
+  $<HTMLInputElement>("hp").value = String(p.hpCount);
+  $<HTMLInputElement>("front").value = String(p.frontHeight);
+  $<HTMLInputElement>("rear").value = String(p.rearHeight);
+  $<HTMLSelectElement>("top-lips").value = p.topLips;
+  $<HTMLSelectElement>("bottom-lips").value = p.bottomLips;
+  $<HTMLInputElement>("top-size").value = String(lipSize("top"));
+  $<HTMLInputElement>("bottom-size").value = String(lipSize("bottom"));
+  $<HTMLSelectElement>("left-end").value = p.leftWall ? "wall" : "cap";
+  $<HTMLInputElement>("php").value = String(state.panelHp);
+  $<HTMLInputElement>("clr").value = String(p.tabClearance);
+}
+
 $("reset").addEventListener("click", () => {
   state.params = { ...DEFAULTS }; state.panelHp = 6;
-  const p = state.params;
-  $<HTMLInputElement>("hp").value = String(p.hpCount); $<HTMLInputElement>("front").value = String(p.frontHeight); $<HTMLInputElement>("rear").value = String(p.rearHeight);
-  $<HTMLSelectElement>("top-lips").value = p.topLips; $<HTMLSelectElement>("bottom-lips").value = p.bottomLips;
-  $<HTMLInputElement>("top-size").value = String(lipSize("top")); $<HTMLInputElement>("bottom-size").value = String(lipSize("bottom"));
-  $<HTMLSelectElement>("left-end").value = "cap"; $<HTMLInputElement>("php").value = "6"; $<HTMLInputElement>("clr").value = "0";
+  syncControls();
   for (const id of Object.keys(SWATCHES) as SwatchId[]) applySwatch(id, null);
   syncSwatches();
   showValues(); rebuild();
@@ -239,23 +287,60 @@ $("reset").addEventListener("click", () => {
 
 // ---- export ----------------------------------------------------------------------
 const exportStatus = $("export-status");
-for (const format of ["stl", "step"] as const) {
-  $<HTMLButtonElement>(`export-${format}`).addEventListener("click", async () => {
-    const part = $<HTMLSelectElement>("export-part").value as PartName;
-    exportStatus.textContent = `Writing ${format.toUpperCase()}…`; exportStatus.className = "status";
-    try {
-      const r = (await ask({ kind: "export", part, format })) as Extract<Response, { kind: "file" }>;
-      const url = URL.createObjectURL(new Blob([r.buffer], { type: "application/octet-stream" }));
-      const a = document.createElement("a"); a.href = url; a.download = r.name; a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 10_000);
-      exportStatus.textContent = `${r.name} (${(r.buffer.byteLength / 1048576).toFixed(2)} MiB)`; exportStatus.className = "status ok";
-    } catch (err) {
-      exportStatus.textContent = `Could not export: ${err instanceof Error ? err.message : String(err)}`;
-    }
-  });
+
+async function download(parts: PartName[], formats: ("stl" | "step")[]): Promise<void> {
+  exportStatus.textContent = "Writing…";
+  exportStatus.className = "status";
+  try {
+    const r = (await ask({ kind: "export", parts, formats })) as Extract<Response, { kind: "file" }>;
+    const url = URL.createObjectURL(new Blob([r.buffer], { type: "application/octet-stream" }));
+    const a = document.createElement("a"); a.href = url; a.download = r.name; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    exportStatus.textContent = `${r.name} (${(r.buffer.byteLength / 1048576).toFixed(2)} MiB)`;
+    exportStatus.className = "status ok";
+  } catch (err) {
+    exportStatus.textContent = `Could not export: ${err instanceof Error ? err.message : String(err)}`;
+    exportStatus.className = "status";
+  }
 }
+
+$("download").addEventListener("click", () => download(tickedParts(), zipFormats()));
+$("zip-format").addEventListener("change", downloadNote);
+$("download-part").addEventListener("click", () => download(
+  [$<HTMLSelectElement>("export-part").value as PartName],
+  [$<HTMLSelectElement>("part-format").value as "stl" | "step"],
+));
+
+// ---- config ----------------------------------------------------------------------
+const configStatus = $("config-status");
+const configFile = $<HTMLInputElement>("config-file");
+$("import-config").addEventListener("click", () => configFile.click());
+configFile.addEventListener("change", async () => {
+  const file = configFile.files?.[0];
+  configFile.value = "";               // so the same file can be picked twice
+  if (!file) return;
+  configStatus.className = "status";
+  try {
+    const { parameters, warnings } = parseConfig(await file.text());
+    const { blankPanelHp, ...rest } = parameters;
+    state.params = { ...DEFAULTS, ...rest };
+    state.panelHp = blankPanelHp;
+    syncControls();
+    showValues();
+    await rebuild();
+    configStatus.textContent = warnings.length
+      ? `Loaded with ${warnings.length} correction${warnings.length === 1 ? "" : "s"}: ${warnings.join("; ")}`
+      : `Loaded ${file.name}`;
+    if (!warnings.length) configStatus.className = "status ok";
+    scene.frame(state.params.hpCount * HP, state.params.panelHeight + 8,
+      Math.max(state.params.frontHeight, state.params.rearHeight));
+  } catch (err) {
+    configStatus.textContent = `Could not read that file: ${err instanceof Error ? err.message : String(err)}`;
+  }
+});
 
 // ---- go -------------------------------------------------------------------------
 syncSwatches();
 showValues();
+downloadNote();
 rebuild();
