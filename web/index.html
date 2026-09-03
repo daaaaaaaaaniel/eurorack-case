@@ -70,7 +70,7 @@
   .row .val small { color: var(--muted); font-weight: 400; margin-left: 2px; }
   .row input[type=range] { grid-column: 1 / -1; }
   .row .sub { grid-column: 1 / -1; margin-top: -4px; color: var(--muted); font-size: 12px; line-height: 1.4; }
-  .row .sub b { color: var(--text); font-weight: 500; font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-size: 12px; font-variant-numeric: tabular-nums; }
+  .row .sub b { color: var(--text); font-weight: 500; font-variant-numeric: tabular-nums; }
   .row select { grid-column: 1 / -1; font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; }
   input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 22px; background: transparent; margin: 0; cursor: pointer; }
   input[type=range]::-webkit-slider-runnable-track { height: 3px; background: var(--line); border-radius: 2px; }
@@ -166,6 +166,8 @@
     <section>
       <h2>Parameters</h2>
       <div class="rows">
+        <div class="row"><label for="left-end">Side panels</label><span class="val"></span>
+          <select id="left-end"><option value="cap">Symmetric (both detachable)</option><option value="wall">Asymmetric (right detachable)</option></select></div>
         <div class="row"><label for="hp">Width</label><span class="val"><span id="hp-v">26</span><small>HP</small></span>
           <input id="hp" type="range" min="2" max="168" step="1" value="26">
           <span class="sub" id="w-with"></span><span class="sub" id="w-without"></span></div>
@@ -180,8 +182,6 @@
         <div class="row"><label for="bottom-lips">Bottom lips</label><span class="val"><span id="bottom-size-v">1.0</span><small>mm</small></span>
           <select id="bottom-lips"><option value="round">Round</option><option value="sharp">Sharp</option><option value="chamfer">Chamfer</option></select>
           <input id="bottom-size" type="range" min="0.5" max="10" step="0.5" value="1"></div>
-        <div class="row"><label for="left-end">Side panels</label><span class="val"></span>
-          <select id="left-end"><option value="cap">Symmetric (both detachable)</option><option value="wall">Asymmetric (right detachable)</option></select></div>
         <div class="row"><label for="clr">Tab clearance</label><span class="val"><span id="clr-v">0.00</span><small>mm</small></span>
           <input id="clr" type="range" min="0" max="0.6" step="0.05" value="0"></div>
         <div class="row"><label for="php">Blank panel</label><span class="val"><span id="php-v">6</span><small>HP</small></span>
