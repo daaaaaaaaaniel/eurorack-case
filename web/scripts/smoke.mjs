@@ -57,6 +57,10 @@ const waitBuilt = async (label, timeout = 120000) => {
 };
 
 try {
+  // LOADING sits over the canvas until the first model is up
+  await sleep(1500);
+  console.log("while loading:", await evaluate("document.getElementById('status').textContent + ' / overlay ' + (document.getElementById('loading').hidden ? 'hidden' : 'showing')"));
+  writeFileSync(shot.replace(/\.png$/, "-loading.png"), Buffer.from((await send("Page.captureScreenshot", { format: "png" })).result.data, "base64"));
   await waitBuilt("first build");
   const vols = () => evaluate("['vol-case','vol-caps','vol-panel','vol-total'].map(i => document.getElementById(i).textContent).join(' / ')");
   console.log("volumes:", await vols());
@@ -139,6 +143,9 @@ try {
   console.log("config status:", cs);
   if (!/Loaded/.test(cs)) throw new Error(`config import did not report success: "${cs}"`);
   console.log("controls now:", await evaluate("[['hp',26],['front',0],['rear',0],['php',0]].map(([i]) => i + '=' + document.getElementById(i).value).join(' ') + ' lips=' + document.getElementById('top-lips').value"));
+
+  // the LOADING overlay is gone once the first model is up
+  if (await evaluate("!document.getElementById('loading').hidden")) throw new Error("LOADING overlay still showing after the first build");
 
   // the Display tip pins open on click, and a click elsewhere closes it
   await evaluate("document.getElementById('display-tip').click(); true");

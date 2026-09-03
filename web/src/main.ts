@@ -167,7 +167,7 @@ async function rebuild(): Promise<void> {
     banner.classList.remove("show");
     readout();
     layout();
-    if (firstBuild) { firstBuild = false; scene.frame(r.stats.width, r.stats.outerDepth, r.stats.height); }
+    if (firstBuild) { firstBuild = false; $("loading").hidden = true; scene.frame(r.stats.width, r.stats.outerDepth, r.stats.height); }
   } catch (err) {
     // keep the last good model on screen; say what went wrong where the build time normally goes
     const message = err instanceof Error ? err.message : String(err);
@@ -217,11 +217,10 @@ $<HTMLSelectElement>("left-end").addEventListener("change", (e) => {
 });
 $<HTMLInputElement>("explode").addEventListener("input", (e) => { state.explode = parseFloat((e.target as HTMLInputElement).value); showValues(); layout(); });
 
-// The Display tip shows on hover or focus through CSS; a click pins it open until the
+// A heading tip shows on hover or focus through CSS; a click pins it open until the
 // next click elsewhere or Escape, for touch screens and anyone who wants to read slowly.
-{
-  const button = $<HTMLButtonElement>("display-tip");
-  const tip = button.parentElement!;
+for (const tip of document.querySelectorAll<HTMLElement>(".tip")) {
+  const button = tip.querySelector("button")!;
   const set = (open: boolean) => { tip.classList.toggle("open", open); button.setAttribute("aria-expanded", String(open)); };
   button.addEventListener("click", () => set(!tip.classList.contains("open")));
   document.addEventListener("click", (e) => { if (!tip.contains(e.target as Node)) set(false); });
