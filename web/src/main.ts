@@ -98,7 +98,7 @@ function readout(): void {
   // an integral left wall takes the same 4 mm a cap would, so the assembled length is the
   // same either way; the case on its own is that much longer in the asymmetric variant
   $("w-with").innerHTML = `<b>${(s.width + 2 * t).toFixed(2)} mm</b> with end caps`;
-  $("w-without").innerHTML = `<b>${(s.width + (p.leftWall ? t : 0)).toFixed(2)} mm</b> without end caps`;
+  $("w-without").innerHTML = `<b>${(s.width + (p.leftWall ? t : 0)).toFixed(2)} mm</b>`;
   $("tilt").innerHTML = s.tiltDeg === 0
     ? "Panel is level"
     : `Panel tilts <b>${Math.abs(s.tiltDeg).toFixed(1)}°</b> toward ${s.tiltDeg > 0 ? "rear" : "front"}`;
